@@ -1,4 +1,4 @@
-FILES:= ft_nmap
+FILES:= ft_nmap parse
 NAME:= ft_nmap
 
 # ------------------
