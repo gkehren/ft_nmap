@@ -2,8 +2,8 @@
 # define FT_NMAP_H
 
 # include <stdio.h>
-# include <string.h>
-# include <stdlib.h>
+
+# include "../libft/libft.h"
 
 enum scan_type
 {
@@ -12,18 +12,16 @@ enum scan_type
 	ACK,
 	FIN,
 	XMAS,
-	UDP,
-	ALL
+	UDP
 };
 
 typedef struct s_args
 {
 	char			*ip;
 	char			*file;
-	int				port_begin;
-	int				port_end;
+	int				port[1024];
 	int				speedup;
-	enum scan_type	scan;
+	int				scans[6];
 }	t_args;
 
 t_args	parse_args(int argc, char **argv);

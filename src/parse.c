@@ -2,7 +2,7 @@
 
 void	parse_arg_help(char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--help") == 0)
+	if (ft_strcmp(argv[*i], "--help") == 0)
 	{
 		printf("Help Screen\n");
 		printf("ft_nmap [OPTIONS]\n");
@@ -16,20 +16,88 @@ void	parse_arg_help(char **argv, int *i)
 	}
 }
 
-// TODO: need to handle the case where the user provides a range of ports
-// Example: --ports 1-100 or --ports 1,2,3,4,5 or --ports 1,5-15
-// The ports to be scanned can be read as a range or individually. In the case no port
-// is specified the scan must run with the range 1-1024.
-// The number of ports scanned cannot exceed 1024.
+int	add_port_end_of_table(t_args *args, int port)
+{
+	int	i = 0;
+	while (args->port[i] != 0)
+	{
+		if (args->port[i] == port)
+		{
+			printf("Error: --ports the port %d is already in the list\n", port);
+			return (1);
+		}
+		i++;
+	}
+	if (i >= 1024)
+	{
+		printf("Error: --ports the number of ports scanned cannot exceed 1024\n");
+		return (1);
+	}
+	args->port[i] = port;
+	return (0);
+}
+
+int	add_port_range(t_args *args, int begin, int end)
+{
+	if (end - begin > 1024)
+	{
+		printf("Error: --ports the number of ports scanned cannot exceed 1024\n");
+		return (1);
+	}
+	int	port = begin;
+	while (port <= end)
+	{
+		if (add_port_end_of_table(args, port) == 1)
+			return (1);
+		port++;
+	}
+	return (0);
+}
+
 void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--ports") == 0)
+	if (ft_strcmp(argv[*i], "--ports") == 0)
 	{
 		if (*i + 1 < argc)
 		{
 			(*i)++;
-			args->port_begin = atoi(argv[*i]);
-			args->port_end = atoi(argv[*i]);
+			char	**tokens = ft_split(argv[*i], ',');
+			for (int j = 0; tokens[j] != NULL; j++)
+			{
+				char	*token = tokens[j];
+				if (strstr(token, "-") != NULL)
+				{
+					int	begin = ft_atoi(strtok(token, "-"));
+					int	end = ft_atoi(strtok(NULL, "-"));
+					if (begin < 1 || begin > 65535 || end < 1 || end > 65535)
+					{
+						printf("Error: --ports incorrect range port (1-65535)\n");
+						ft_free(tokens);
+						exit(1);
+					}
+					if (add_port_range(args, begin, end) == 1)
+					{
+						ft_free(tokens);
+						exit(1);
+					}
+				}
+				else
+				{
+					int	port = ft_atoi(token);
+					if (port < 1 || port > 65535)
+					{
+						printf("Error: --ports incorrect range port (1-65535)\n");
+						ft_free(tokens);
+						exit(1);
+					}
+					if (add_port_end_of_table(args, port) == 1)
+					{
+						ft_free(tokens);
+						exit(1);
+					}
+				}
+			}
+			ft_free(tokens);
 		}
 		else
 		{
@@ -41,7 +109,7 @@ void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 
 void	parse_arg_ip(t_args *args, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--ip") == 0)
+	if (ft_strcmp(argv[*i], "--ip") == 0)
 	{
 		if (*i + 1 < argc)
 		{
@@ -58,7 +126,7 @@ void	parse_arg_ip(t_args *args, int argc, char **argv, int *i)
 
 void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--file") == 0)
+	if (ft_strcmp(argv[*i], "--file") == 0)
 	{
 		if (*i + 1 < argc)
 		{
@@ -75,12 +143,12 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 
 void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--speedup") == 0)
+	if (ft_strcmp(argv[*i], "--speedup") == 0)
 	{
 		if (*i + 1 < argc)
 		{
 			(*i)++;
-			int speedup = atoi(argv[*i]);
+			int	speedup = ft_atoi(argv[*i]);
 			if (speedup > 250)
 			{
 				printf("Error: --speedup must be less than 250\n");
@@ -101,31 +169,35 @@ void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
-// TODO:
-// We must be able to run each type of scan individually, and several scans simultaneously.
 void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "--scan") == 0)
+	if (ft_strcmp(argv[*i], "--scan") == 0)
 	{
 		if (*i + 1 < argc)
 		{
+			char	*token;
 			(*i)++;
-			if (strcmp(argv[*i], "SYN") == 0)
-				args->scan = SYN;
-			else if (strcmp(argv[*i], "NULL") == 0)
-				args->scan = null;
-			else if (strcmp(argv[*i], "ACK") == 0)
-				args->scan = ACK;
-			else if (strcmp(argv[*i], "FIN") == 0)
-				args->scan = FIN;
-			else if (strcmp(argv[*i], "XMAS") == 0)
-				args->scan = XMAS;
-			else if (strcmp(argv[*i], "UDP") == 0)
-				args->scan = UDP;
-			else
+			token = strtok(argv[*i], ",");
+			while (token != NULL)
 			{
-				printf("Error: --scan must be one of SYN/NULL/ACK/FIN/XMAS/UDP\n");
-				exit(1);
+				if (ft_strcmp(token, "SYN") == 0)
+					args->scans[SYN] = 1;
+				else if (ft_strcmp(token, "NULL") == 0)
+					args->scans[null] = 1;
+				else if (ft_strcmp(token, "ACK") == 0)
+					args->scans[ACK] = 1;
+				else if (ft_strcmp(token, "FIN") == 0)
+					args->scans[FIN] = 1;
+				else if (ft_strcmp(token, "XMAS") == 0)
+					args->scans[XMAS] = 1;
+				else if (ft_strcmp(token, "UDP") == 0)
+					args->scans[UDP] = 1;
+				else
+				{
+					printf("Error: --scan must be one of SYN/NULL/ACK/FIN/XMAS/UDP\n");
+					exit(1);
+				}
+				token = strtok(NULL, ",");
 			}
 		}
 		else
@@ -139,14 +211,15 @@ void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 t_args	parse_args(int argc, char **argv)
 {
 	t_args	args;
-	int	i = 1;
+	int		i = 1;
 
 	args.ip = NULL;
 	args.file = NULL;
-	args.port_begin = 1;
-	args.port_end = 1024;
+	for (int i = 0; i < 1024; i++)
+		args.port[i] = 0;
 	args.speedup = 0;
-	args.scan = ALL;
+	for (int i = 0; i < 6; i++)
+		args.scans[i] = 0;
 
 	while (i < argc)
 	{
@@ -168,6 +241,17 @@ t_args	parse_args(int argc, char **argv)
 	{
 		printf("Error: --ip and --file are mutually exclusive\n");
 		exit(1);
+	}
+
+	if (args.scans[SYN] == 0 && args.scans[null] == 0 && args.scans[ACK] == 0 && args.scans[FIN] == 0 && args.scans[XMAS] == 0 && args.scans[UDP] == 0)
+	{
+		for (int i = 0; i < 6; i++)
+			args.scans[i] = 1;
+	}
+	if (args.port[0] == 0)
+	{
+		for (int i = 1; i <= 1024; i++)
+			add_port_end_of_table(&args, i);
 	}
 
 	return (args);
