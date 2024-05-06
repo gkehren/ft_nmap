@@ -28,8 +28,11 @@ int	main(int argc, char **argv)
 	if (nmap.args.scans[UDP] == 1)
 		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
+	nmap.destaddr = get_sockaddr(nmap.args.ip);
+
 	printf("sockfd: %d\n", nmap.sockfd);
 	printf("sockfd_udp: %d\n", nmap.sockfd_udp);
+	printf("ip: %s\n", inet_ntoa(nmap.destaddr.sin_addr));
 
 	close_nmap(&nmap);
 	return (0);

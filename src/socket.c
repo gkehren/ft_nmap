@@ -19,3 +19,23 @@ int create_socket(int protocol)
 	}
 	return (sockfd);
 }
+
+struct sockaddr_in get_sockaddr(char *host)
+{
+	struct addrinfo hints, *res;
+	int status;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if ((status = getaddrinfo(host, NULL, &hints, &res)) != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+		exit(EXIT_FAILURE);
+	}
+
+	struct sockaddr_in ip_address = *(struct sockaddr_in *)res->ai_addr;
+	freeaddrinfo(res);
+	return (ip_address);
+}

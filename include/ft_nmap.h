@@ -56,5 +56,6 @@ t_args	parse_args(int argc, char **argv);
 
 // socket.c
 int create_socket(int protocol);
+struct sockaddr_in get_sockaddr(char *host);
 
 #endif
