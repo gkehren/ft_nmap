@@ -1,5 +1,13 @@
 #include "../include/ft_nmap.h"
 
+void	close_nmap(t_nmap *nmap)
+{
+	if (nmap->sockfd != -1)
+		close(nmap->sockfd);
+	if (nmap->sockfd_udp != -1)
+		close(nmap->sockfd_udp);
+}
+
 int	main(int argc, char **argv)
 {
 	if (argc < 2)
@@ -9,21 +17,20 @@ int	main(int argc, char **argv)
 		printf("Or:\n");
 		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]]\n");
 	}
-	t_args	args = parse_args(argc, argv);
 
-	printf("ip: %s\n", args.ip);
-	printf("file: %s\n", args.file);
-	printf("speedup: %d\n", args.speedup);
-	printf("scans:\n");
-	for (int i = 0; i < 6; i++)
-		printf("scan[%d]: %d\n", i, args.scans[i]);
+	t_nmap		nmap;
+	nmap.args = parse_args(argc, argv);
+	nmap.sockfd = -1;
+	nmap.sockfd_udp = -1;
 
-	printf("ports:\n");
-	for (int i = 0; i < 1024; i++)
-	{
-		if (args.port[i] != 0)
-			printf("port[%d]: %d\n", i, args.port[i]);
-	}
+	if (nmap.args.scans[SYN] == 1 || nmap.args.scans[null] == 1 || nmap.args.scans[ACK] == 1 || nmap.args.scans[FIN] == 1 || nmap.args.scans[XMAS] == 1)
+		nmap.sockfd = create_socket(IPPROTO_TCP);
+	if (nmap.args.scans[UDP] == 1)
+		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
+	printf("sockfd: %d\n", nmap.sockfd);
+	printf("sockfd_udp: %d\n", nmap.sockfd_udp);
+
+	close_nmap(&nmap);
 	return (0);
 }

@@ -1,4 +1,4 @@
-FILES:= ft_nmap parse
+FILES:= ft_nmap parse socket
 NAME:= ft_nmap
 
 # ------------------
