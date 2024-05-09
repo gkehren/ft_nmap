@@ -81,17 +81,37 @@ int send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port)
 
 void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet)
 {
-	(void)user_data;
 	(void)pkthdr;
+	(void)user_data;
 	struct ip *iphdr = (struct ip *)(packet + 14);
+
+	if (iphdr->ip_p != IPPROTO_TCP)
+	{
+		if (iphdr->ip_p == IPPROTO_ICMP)
+			printf("Received ICMP packet\n");
+		else if (iphdr->ip_p == IPPROTO_UDP)
+			printf("Received UDP packet\n");
+		else
+			printf("Received packet with protocol %d\n", iphdr->ip_p);
+		return;
+	}
+
 	struct tcphdr * tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
+
+	char src_ip[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
+	printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
 
 	if (tcphdr->th_flags & TH_SYN && tcphdr->th_flags & TH_ACK)
 	{
-		printf("Port is open\n");
+		printf("Port %d on %s is open\n", ntohs(tcphdr->th_sport), src_ip);
 	}
 	else if (tcphdr->th_flags & TH_RST)
 	{
-		printf("Port is closed\n");
+		printf("Port %d on %s is closed\n", ntohs(tcphdr->th_sport), src_ip);
+	}
+	else
+	{
+		printf("Port %d on %s is filtered\n", ntohs(tcphdr->th_sport), src_ip);
 	}
 }

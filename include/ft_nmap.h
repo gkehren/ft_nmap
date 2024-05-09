@@ -48,10 +48,13 @@ typedef struct s_nmap
 	pcap_t	*handle;
 	int		sockfd;
 	int		sockfd_udp;
+	struct bpf_program	fp;
 	struct sockaddr_in	destaddr;
 }	t_nmap;
 
 t_args	parse_args(int argc, char **argv);
+
+void	close_nmap(t_nmap *nmap);
 
 // socket.c
 int		create_socket(int protocol);
