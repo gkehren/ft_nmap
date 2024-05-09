@@ -1,4 +1,4 @@
-FILES:= ft_nmap parse socket
+FILES:= ft_nmap parse socket packet
 NAME:= ft_nmap
 
 # ------------------
@@ -37,7 +37,7 @@ all: ${LIBFT} ${NAME}
 
 ${NAME}: ${OBJ} ${LIBFTPATH}${LIBFTLIB}
 	@echo ${CYAN} " - Compiling $@" $(RED)
-	@${CC} ${CFLAGS} ${SRC} -o ${NAME} ${LIBFTFLAGS} -lm
+	@${CC} ${CFLAGS} ${SRC} -o ${NAME} ${LIBFTFLAGS} -lm -lpcap
 	@echo $(GREEN) " - OK" $(EOC)
 
 ${CCHPATH}%.o: ${SRCPATH}%.c

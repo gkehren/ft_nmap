@@ -6,7 +6,6 @@
 # include <string.h>
 # include <arpa/inet.h>
 # include <sys/socket.h>
-# include <netinet/in.h>
 # include <unistd.h>
 # include <sys/types.h>
 # include <sys/time.h>
@@ -19,8 +18,7 @@
 # include <netinet/ip_icmp.h>
 # include <netinet/tcp.h>
 # include <netinet/udp.h>
-# include <netinet/ip.h>
-# include <netinet/ip_icmp.h>
+# include <netinet/in.h>
 # include <pcap.h>
 
 # include "../libft/libft.h"
@@ -47,6 +45,7 @@ typedef struct s_args
 typedef struct s_nmap
 {
 	t_args	args;
+	pcap_t	*handle;
 	int		sockfd;
 	int		sockfd_udp;
 	struct sockaddr_in	destaddr;
@@ -55,7 +54,11 @@ typedef struct s_nmap
 t_args	parse_args(int argc, char **argv);
 
 // socket.c
-int create_socket(int protocol);
-struct sockaddr_in get_sockaddr(char *host);
+int		create_socket(int protocol);
+struct	sockaddr_in get_sockaddr(char *host);
+
+// packet.c
+int		send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port);
+void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet);
 
 #endif
