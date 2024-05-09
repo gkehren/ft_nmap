@@ -44,11 +44,12 @@ typedef struct s_args
 
 typedef struct s_nmap
 {
-	t_args	args;
-	pcap_t	*handle;
-	int		sockfd;
-	int		sockfd_udp;
+	t_args				args;
+	pcap_t				*handle;
+	int					sockfd;
+	int					sockfd_udp;
 	struct bpf_program	fp;
+	pcap_if_t			*alldevs;
 	struct sockaddr_in	destaddr;
 }	t_nmap;
 

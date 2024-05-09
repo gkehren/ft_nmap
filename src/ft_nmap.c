@@ -10,17 +10,38 @@ void	close_nmap(t_nmap *nmap)
 		pcap_close(nmap->handle);
 	if (nmap->fp.bf_insns != NULL)
 		pcap_freecode(&nmap->fp);
+	if (nmap->alldevs != NULL)
+		pcap_freealldevs(nmap->alldevs);
+}
+
+char	*get_default_dev(t_nmap *nmap)
+{
+	char		errbuf[PCAP_ERRBUF_SIZE];
+
+	if (pcap_findalldevs(&nmap->alldevs, errbuf) == -1)
+	{
+		fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
+		return (NULL);
+	}
+	if (nmap->alldevs == NULL)
+	{
+		fprintf(stderr, "No devices found.\n");
+		return (NULL);
+	}
+
+	return (nmap->alldevs->name);
 }
 
 int	create_pcap(t_nmap *nmap)
 {
 	char	errbuf[PCAP_ERRBUF_SIZE]; // Buffer for error messages
-	char	*dev = "eth0"; // Network device to capture packets from
 	int		timeout = 1000; // Timeout in milliseconds
-	//char	filter_exp[100]; // Filter expression
-	char	filter_exp[] = "tcp";
-	//struct bpf_program	fp; // Compiled filter program (expression)
+	char	filter_exp[100]; // Filter expression
 	bpf_u_int32	netp, maskp; // IP and subnet mask of the network device
+
+	char	*dev = get_default_dev(nmap); // Network device to capture packets from
+	if (dev == NULL)
+		return (1);
 
 	if (pcap_lookupnet(dev, &netp, &maskp, errbuf) == -1)
 	{
@@ -35,7 +56,8 @@ int	create_pcap(t_nmap *nmap)
 		return (1);
 	}
 
-	//sprintf(filter_exp, "src host %s and dst host %s", nmap->args.ip, inet_ntoa(((struct sockaddr_in)nmap->destaddr).sin_addr));
+	sprintf(filter_exp, "tcp port %d", nmap->args.port[0]);
+	//sprintf(filter_exp, "tcp");
 
 	if (pcap_compile(nmap->handle, &nmap->fp, filter_exp, 0, netp) == -1)
 	{

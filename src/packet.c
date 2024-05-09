@@ -25,6 +25,7 @@ unsigned short	calculate_checksum(unsigned short *paddress, int len)
 	return ((unsigned short)~sum);
 }
 
+// TODO: this function is wrong and we are not allowed to use pcap_sendpacket need to use a sockfd fron scratch
 int send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port)
 {
 	// Create the IP header
@@ -63,7 +64,6 @@ int send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port)
 	memcpy(pseudo_packet, &iphdr, sizeof(struct ip));
 	memcpy(pseudo_packet + ip_len, &tcphdr, sizeof(struct tcphdr));
 	tcphdr.th_sum = calculate_checksum(pseudo_packet, total_len);
-	free(pseudo_packet);
 
 	// Create the packet
 	char packet[sizeof(struct ip) + sizeof(struct tcphdr)] = {0};
@@ -74,8 +74,10 @@ int send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port)
 	if (pcap_sendpacket(handle, (u_char *)packet, sizeof(packet)) == -1)
 	{
 		fprintf(stderr, "Error: %s\n", pcap_geterr(handle));
+		free(pseudo_packet);
 		return (1);
 	}
+	free(pseudo_packet);
 	return (0);
 }
 
