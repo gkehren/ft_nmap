@@ -50,6 +50,7 @@ typedef struct s_nmap
 	int					sockfd_udp;
 	struct bpf_program	fp;
 	pcap_if_t			*alldevs;
+	struct sockaddr_in	srcaddr;
 	struct sockaddr_in	destaddr;
 }	t_nmap;
 
@@ -62,7 +63,7 @@ int		create_socket(int protocol);
 struct	sockaddr_in get_sockaddr(char *host);
 
 // packet.c
-int		send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port);
+int		send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr);
 void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet);
 
 #endif

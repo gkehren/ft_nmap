@@ -3,21 +3,12 @@
 unsigned short	calculate_checksum(unsigned short *paddress, int len)
 {
 	int				sum = 0;
-	int				count = len;
-	unsigned short	oddbyte;
 
-	while (count > 1)
-	{
-		sum += *paddress++;
-		count -= 2;
-	}
+	for (int i = 0; i < 12; i++)
+		sum += paddress[i];
 
-	if (count > 0)
-	{
-		oddbyte = 0;
-		*((u_char *)&oddbyte) = *(u_char *)paddress;
-		sum += oddbyte;
-	}
+	for (int i = 12; i < len; i++)
+		sum += paddress[i];
 
 	while (sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
@@ -25,59 +16,54 @@ unsigned short	calculate_checksum(unsigned short *paddress, int len)
 	return ((unsigned short)~sum);
 }
 
-// TODO: this function is wrong and we are not allowed to use pcap_sendpacket need to use a sockfd fron scratch
-int send_syn_scan(pcap_t *handle, struct sockaddr_in destaddr, int port)
+int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
 {
-	// Create the IP header
-	struct ip iphdr;
-	memset(&iphdr, 0, sizeof(struct ip)); // Initialize the IP header
-	iphdr.ip_hl = 5; // Header length
-	iphdr.ip_v = 4; // Version
-	iphdr.ip_tos = 0; // Type of service
-	iphdr.ip_len = htons(sizeof(struct ip) + sizeof(struct tcphdr)); // Total length
-	iphdr.ip_id = 0; // Identification
-	iphdr.ip_off = 0; // Fragment offset
-	iphdr.ip_ttl = 255; // Time to live
-	iphdr.ip_p = IPPROTO_TCP; // Protocol
-	iphdr.ip_sum = 0; // Checksum (calculated later)
-	iphdr.ip_src.s_addr = INADDR_ANY; // Source address
-	iphdr.ip_dst = destaddr.sin_addr; // Destination address
-	iphdr.ip_sum = calculate_checksum((unsigned short *)&iphdr, sizeof(iphdr));
-
 	// Create the TCP header
 	struct tcphdr tcphdr;
 	memset(&tcphdr, 0, sizeof(struct tcphdr)); // Initialize the TCP header
-	tcphdr.th_sport = htons(12345); // Source port
-	tcphdr.th_dport = htons(port); // Destination port (80 for testing purposes)
-	tcphdr.th_seq = 0; // Sequence number
+	tcphdr.th_sport = htons(43906); // Source port
+	tcphdr.th_dport = htons(port); // Destination port
+	tcphdr.th_seq = htonl(0); // Sequence number
 	tcphdr.th_ack = 0; // Acknowledgement number
 	tcphdr.th_off = 5; // Data offset
 	tcphdr.th_flags = TH_SYN; // Flags
-	tcphdr.th_win = htons(65535); // Window
-	tcphdr.th_sum = 0; // Checksum (calculated later)
+	tcphdr.th_win = htons(1024); // Window
 	tcphdr.th_urp = 0; // Urgent pointer
 
-	unsigned short tcp_len = sizeof(tcphdr) / sizeof(unsigned short);
-	int ip_len = sizeof(struct ip) / sizeof(unsigned short);
-	int total_len = ip_len + tcp_len;
-	unsigned short *pseudo_packet = malloc(total_len * sizeof(unsigned short));
-	memcpy(pseudo_packet, &iphdr, sizeof(struct ip));
-	memcpy(pseudo_packet + ip_len, &tcphdr, sizeof(struct tcphdr));
-	tcphdr.th_sum = calculate_checksum(pseudo_packet, total_len);
+	char options[4]; // Maximum Segment Size (MSS) option
+	options[0] = 2; // Option kind: Maximum Segment Size
+	options[1] = 4; // Option length: 4 bytes
+	*(unsigned short *)&options[2] = htons(1460); // Maximum Segment Size
 
 	// Create the packet
-	char packet[sizeof(struct ip) + sizeof(struct tcphdr)] = {0};
-	memcpy(packet, &iphdr, sizeof(struct ip));
-	memcpy(packet + sizeof(struct ip), &tcphdr, sizeof(struct tcphdr));
+	char packet[sizeof(struct tcphdr) + sizeof(options)] = {0};
+	memcpy(packet, &tcphdr, sizeof(struct tcphdr));
+	memcpy(packet + sizeof(struct tcphdr), options, sizeof(options));
+
+	// Calculate checksum
+	unsigned short pseudo_packet[12 + sizeof(packet) / 2];
+	pseudo_packet[0] = srcaddr.sin_addr.s_addr >> 16;
+	pseudo_packet[1] = srcaddr.sin_addr.s_addr & 0xffff;
+	pseudo_packet[2] = destaddr.sin_addr.s_addr >> 16;
+	pseudo_packet[3] = destaddr.sin_addr.s_addr & 0xffff;
+	pseudo_packet[4] = htons(IPPROTO_TCP);
+	pseudo_packet[5] = htons(sizeof(packet));
+	memcpy(&pseudo_packet[6], packet, sizeof(packet));
+	unsigned short checksum = calculate_checksum(pseudo_packet, 6 + sizeof(packet) / 2);
+
+	// Update the checksum
+	tcphdr.th_sum = checksum;
+	*(unsigned short *)(packet + 16) = checksum;
+
+	// Update the data offset
+	tcphdr.th_off += sizeof(options) / 4;
 
 	// Send the packet
-	if (pcap_sendpacket(handle, (u_char *)packet, sizeof(packet)) == -1)
+	if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
 	{
-		fprintf(stderr, "Error: %s\n", pcap_geterr(handle));
-		free(pseudo_packet);
+		perror("sendto");
 		return (1);
 	}
-	free(pseudo_packet);
 	return (0);
 }
 
@@ -87,22 +73,11 @@ void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u
 	(void)user_data;
 	struct ip *iphdr = (struct ip *)(packet + 14);
 
-	if (iphdr->ip_p != IPPROTO_TCP)
-	{
-		if (iphdr->ip_p == IPPROTO_ICMP)
-			printf("Received ICMP packet\n");
-		else if (iphdr->ip_p == IPPROTO_UDP)
-			printf("Received UDP packet\n");
-		else
-			printf("Received packet with protocol %d\n", iphdr->ip_p);
-		return;
-	}
-
 	struct tcphdr * tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
 
 	char src_ip[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
-	printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
+	//printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
 
 	if (tcphdr->th_flags & TH_SYN && tcphdr->th_flags & TH_ACK)
 	{

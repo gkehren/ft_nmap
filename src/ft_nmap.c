@@ -56,8 +56,7 @@ int	create_pcap(t_nmap *nmap)
 		return (1);
 	}
 
-	sprintf(filter_exp, "tcp port %d", nmap->args.port[0]);
-	//sprintf(filter_exp, "tcp");
+	sprintf(filter_exp, "tcp and src host %s and src port %d", nmap->args.ip, nmap->args.port[0]);
 
 	if (pcap_compile(nmap->handle, &nmap->fp, filter_exp, 0, netp) == -1)
 	{
@@ -70,6 +69,8 @@ int	create_pcap(t_nmap *nmap)
 		fprintf(stderr, "Error: Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(nmap->handle));
 		return (1);
 	}
+
+	printf("Filter expression: %s\n", filter_exp);
 
 	return (0);
 }
@@ -94,6 +95,9 @@ int	main(int argc, char **argv)
 	if (nmap.args.scans[UDP] == 1)
 		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
+	nmap.srcaddr.sin_family = AF_INET;
+	nmap.srcaddr.sin_port = htons(43906);
+	nmap.srcaddr.sin_addr.s_addr = inet_addr("192.168.1.64");
 	nmap.destaddr = get_sockaddr(nmap.args.ip);
 
 	nmap.handle = NULL;
@@ -104,7 +108,7 @@ int	main(int argc, char **argv)
 	}
 
 	printf("Scanning %s (%s) on port %d\n", nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr), nmap.args.port[0]);
-	if (send_syn_scan(nmap.handle, nmap.destaddr, nmap.args.port[0]) != 0)
+	if (send_syn_scan(nmap.sockfd, nmap.args.port[0], nmap.srcaddr, nmap.destaddr) != 0)
 	{
 		close_nmap(&nmap);
 		return (1);
