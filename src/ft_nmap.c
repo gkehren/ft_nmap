@@ -70,8 +70,6 @@ int	create_pcap(t_nmap *nmap)
 		return (1);
 	}
 
-	printf("Filter expression: %s\n", filter_exp);
-
 	return (0);
 }
 
@@ -95,10 +93,12 @@ int	main(int argc, char **argv)
 	if (nmap.args.scans[UDP] == 1)
 		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
-	nmap.srcaddr.sin_family = AF_INET;
-	nmap.srcaddr.sin_port = htons(43906);
-	nmap.srcaddr.sin_addr.s_addr = inet_addr("192.168.1.64");
 	nmap.destaddr = get_sockaddr(nmap.args.ip);
+	if (fill_srcaddr(&nmap.srcaddr) != 0)
+	{
+		close_nmap(&nmap);
+		return (1);
+	}
 
 	nmap.handle = NULL;
 	if (create_pcap(&nmap) != 0)

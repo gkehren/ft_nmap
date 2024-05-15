@@ -1,14 +1,14 @@
 #include "../include/ft_nmap.h"
 
-unsigned short	calculate_checksum(unsigned short *paddress, int len)
+unsigned short	calculate_checksum(unsigned short *addr, int len)
 {
 	int				sum = 0;
 
 	for (int i = 0; i < 12; i++)
-		sum += paddress[i];
+		sum += addr[i];
 
 	for (int i = 12; i < len; i++)
-		sum += paddress[i];
+		sum += addr[i];
 
 	while (sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
@@ -30,33 +30,59 @@ int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct socka
 	tcphdr.th_win = htons(1024); // Window
 	tcphdr.th_urp = 0; // Urgent pointer
 
-	char options[4]; // Maximum Segment Size (MSS) option
-	options[0] = 2; // Option kind: Maximum Segment Size
-	options[1] = 4; // Option length: 4 bytes
-	*(unsigned short *)&options[2] = htons(1460); // Maximum Segment Size
+	struct iphdr iphdr;
+	memset(&iphdr, 0, sizeof(struct iphdr)); // Initialize the IP header
+	iphdr.ihl = 5; // Header length
+	iphdr.version = 4; // Version
+	iphdr.tos = 0; // Type of service
+	iphdr.tot_len = htons(sizeof(struct iphdr) + sizeof(struct tcphdr)); // Total length
+	iphdr.id = 0; // Identification
+	iphdr.frag_off = htons(0); // Fragment offset
+	iphdr.ttl = 64; // Time to live
+	iphdr.protocol = IPPROTO_TCP; // Protocol
+	iphdr.check = 0; // Checksum
+	iphdr.saddr = srcaddr.sin_addr.s_addr; // Source address
+	iphdr.daddr = destaddr.sin_addr.s_addr; // Destination address
 
 	// Create the packet
-	char packet[sizeof(struct tcphdr) + sizeof(options)] = {0};
-	memcpy(packet, &tcphdr, sizeof(struct tcphdr));
-	memcpy(packet + sizeof(struct tcphdr), options, sizeof(options));
+	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
+	memcpy(packet, &iphdr, sizeof(struct iphdr));
+	memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
 
 	// Calculate checksum
-	unsigned short pseudo_packet[12 + sizeof(packet) / 2];
-	pseudo_packet[0] = srcaddr.sin_addr.s_addr >> 16;
-	pseudo_packet[1] = srcaddr.sin_addr.s_addr & 0xffff;
-	pseudo_packet[2] = destaddr.sin_addr.s_addr >> 16;
-	pseudo_packet[3] = destaddr.sin_addr.s_addr & 0xffff;
-	pseudo_packet[4] = htons(IPPROTO_TCP);
-	pseudo_packet[5] = htons(sizeof(packet));
-	memcpy(&pseudo_packet[6], packet, sizeof(packet));
-	unsigned short checksum = calculate_checksum(pseudo_packet, 6 + sizeof(packet) / 2);
+	iphdr.check = 0;
+	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr) / 2);
+	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
 
-	// Update the checksum
-	tcphdr.th_sum = checksum;
-	*(unsigned short *)(packet + 16) = checksum;
+	// Create the pseudo header for the TCP checksum
+	struct {
+		struct in_addr saddr;
+		struct in_addr daddr;
+		unsigned char zero;
+		unsigned char protocol;
+		unsigned short tcp_len;
+	} pseudo_header;
 
-	// Update the data offset
-	tcphdr.th_off += sizeof(options) / 4;
+	pseudo_header.saddr = srcaddr.sin_addr;
+	pseudo_header.daddr = destaddr.sin_addr;
+	pseudo_header.zero = 0;
+	pseudo_header.protocol = IPPROTO_TCP;
+	pseudo_header.tcp_len = htons(sizeof(struct tcphdr));
+
+	// Create the pseudo packet for the TCP checksum
+	char pseudo_packet[sizeof(pseudo_header) + sizeof(struct tcphdr)];
+	memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
+	memcpy(pseudo_packet + sizeof(pseudo_header), &tcphdr, sizeof(struct tcphdr));
+
+	// Calculate the TCP checksum
+	tcphdr.th_sum = 0;
+	unsigned short tcp_len = htons(sizeof(struct tcphdr));
+	memcpy(pseudo_packet + sizeof(pseudo_header) - sizeof(tcp_len), &tcp_len, sizeof(tcp_len));
+	tcphdr.th_sum = calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2);
+	memcpy(packet + sizeof(struct iphdr) + 16, &tcphdr.th_sum, sizeof(tcphdr.th_sum));
+
+	// Update the TCP checksum in the packet
+	*(unsigned short *)(packet + sizeof(struct iphdr) + 16) = tcphdr.th_sum;
 
 	// Send the packet
 	if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)

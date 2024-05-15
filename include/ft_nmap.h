@@ -20,6 +20,7 @@
 # include <netinet/udp.h>
 # include <netinet/in.h>
 # include <pcap.h>
+# include <ifaddrs.h>
 
 # include "../libft/libft.h"
 
@@ -60,7 +61,8 @@ void	close_nmap(t_nmap *nmap);
 
 // socket.c
 int		create_socket(int protocol);
-struct	sockaddr_in get_sockaddr(char *host);
+struct sockaddr_in	get_sockaddr(char *host);
+int	fill_srcaddr(struct sockaddr_in *srcaddr);
 
 // packet.c
 int		send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr);
