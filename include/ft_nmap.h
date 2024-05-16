@@ -55,6 +55,15 @@ typedef struct s_nmap
 	struct sockaddr_in	destaddr;
 }	t_nmap;
 
+typedef struct s_pseudo_header
+{
+	struct in_addr	saddr;
+	struct in_addr	daddr;
+	unsigned char	zero;
+	unsigned char	protocol;
+	unsigned short	tcp_len;
+}	t_pseudo_header;
+
 t_args	parse_args(int argc, char **argv);
 
 void	close_nmap(t_nmap *nmap);

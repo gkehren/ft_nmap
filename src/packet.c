@@ -16,22 +16,25 @@ unsigned short	calculate_checksum(unsigned short *addr, int len)
 	return ((unsigned short)~sum);
 }
 
-int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+struct tcphdr	create_tcp_header(int port, int flags)
 {
-	// Create the TCP header
-	struct tcphdr tcphdr;
-	memset(&tcphdr, 0, sizeof(struct tcphdr)); // Initialize the TCP header
-	tcphdr.th_sport = htons(43906); // Source port
+	struct tcphdr	tcphdr;
+	memset(&tcphdr, 0, sizeof(struct tcphdr));
+	tcphdr.th_sport = htons(43906); // Source port (random)
 	tcphdr.th_dport = htons(port); // Destination port
 	tcphdr.th_seq = htonl(0); // Sequence number
 	tcphdr.th_ack = 0; // Acknowledgement number
 	tcphdr.th_off = 5; // Data offset
-	tcphdr.th_flags = TH_SYN; // Flags
+	tcphdr.th_flags = flags; // Flags (SYN, ACK, FIN, RST, PSH, URG)
 	tcphdr.th_win = htons(1024); // Window
 	tcphdr.th_urp = 0; // Urgent pointer
+	return (tcphdr);
+}
 
-	struct iphdr iphdr;
-	memset(&iphdr, 0, sizeof(struct iphdr)); // Initialize the IP header
+struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+{
+	struct iphdr	iphdr;
+	memset(&iphdr, 0, sizeof(struct iphdr));
 	iphdr.ihl = 5; // Header length
 	iphdr.version = 4; // Version
 	iphdr.tos = 0; // Type of service
@@ -43,6 +46,32 @@ int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct socka
 	iphdr.check = 0; // Checksum
 	iphdr.saddr = srcaddr.sin_addr.s_addr; // Source address
 	iphdr.daddr = destaddr.sin_addr.s_addr; // Destination address
+	return (iphdr);
+}
+
+unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+{
+	t_pseudo_header	pseudo_header;
+	pseudo_header.saddr = srcaddr.sin_addr;
+	pseudo_header.daddr = destaddr.sin_addr;
+	pseudo_header.zero = 0;
+	pseudo_header.protocol = IPPROTO_TCP;
+	pseudo_header.tcp_len = htons(sizeof(struct tcphdr));
+
+	char pseudo_packet[sizeof(pseudo_header) + sizeof(struct tcphdr)];
+	memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
+	memcpy(pseudo_packet + sizeof(pseudo_header), &tcphdr, sizeof(struct tcphdr));
+
+	tcphdr.th_sum = 0;
+	unsigned short tcp_len = htons(sizeof(struct tcphdr));
+	memcpy(pseudo_packet + sizeof(pseudo_header) - sizeof(tcp_len), &tcp_len, sizeof(tcp_len));
+	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
+}
+
+int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+{
+	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
+	struct tcphdr	tcphdr = create_tcp_header(port, TH_SYN);
 
 	// Create the packet
 	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
@@ -54,31 +83,8 @@ int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct socka
 	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr) / 2);
 	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
 
-	// Create the pseudo header for the TCP checksum
-	struct {
-		struct in_addr saddr;
-		struct in_addr daddr;
-		unsigned char zero;
-		unsigned char protocol;
-		unsigned short tcp_len;
-	} pseudo_header;
-
-	pseudo_header.saddr = srcaddr.sin_addr;
-	pseudo_header.daddr = destaddr.sin_addr;
-	pseudo_header.zero = 0;
-	pseudo_header.protocol = IPPROTO_TCP;
-	pseudo_header.tcp_len = htons(sizeof(struct tcphdr));
-
-	// Create the pseudo packet for the TCP checksum
-	char pseudo_packet[sizeof(pseudo_header) + sizeof(struct tcphdr)];
-	memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
-	memcpy(pseudo_packet + sizeof(pseudo_header), &tcphdr, sizeof(struct tcphdr));
-
 	// Calculate the TCP checksum
-	tcphdr.th_sum = 0;
-	unsigned short tcp_len = htons(sizeof(struct tcphdr));
-	memcpy(pseudo_packet + sizeof(pseudo_header) - sizeof(tcp_len), &tcp_len, sizeof(tcp_len));
-	tcphdr.th_sum = calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2);
+	tcphdr.th_sum = calculate_tcp_checksum(tcphdr, srcaddr, destaddr);
 	memcpy(packet + sizeof(struct iphdr) + 16, &tcphdr.th_sum, sizeof(tcphdr.th_sum));
 
 	// Update the TCP checksum in the packet
