@@ -47,9 +47,9 @@ typedef struct s_nmap
 {
 	t_args				args;
 	pcap_t				*handle;
+	struct bpf_program	fp;
 	int					sockfd;
 	int					sockfd_udp;
-	struct bpf_program	fp;
 	pcap_if_t			*alldevs;
 	struct sockaddr_in	srcaddr;
 	struct sockaddr_in	destaddr;

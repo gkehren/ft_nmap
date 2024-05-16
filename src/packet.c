@@ -107,20 +107,20 @@ void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u
 
 	struct tcphdr * tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
 
-	char src_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
+	//char src_ip[INET_ADDRSTRLEN];
+	//inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
 	//printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
 
 	if (tcphdr->th_flags & TH_SYN && tcphdr->th_flags & TH_ACK)
 	{
-		printf("Port %d on %s is open\n", ntohs(tcphdr->th_sport), src_ip);
+		printf("Port %d is open\n", ntohs(tcphdr->th_sport));
 	}
 	else if (tcphdr->th_flags & TH_RST)
 	{
-		printf("Port %d on %s is closed\n", ntohs(tcphdr->th_sport), src_ip);
+		printf("Port %d is closed\n", ntohs(tcphdr->th_sport));
 	}
 	else
 	{
-		printf("Port %d on %s is filtered\n", ntohs(tcphdr->th_sport), src_ip);
+		printf("Port %d is filtered\n", ntohs(tcphdr->th_sport));
 	}
 }
