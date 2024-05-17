@@ -217,7 +217,7 @@ t_args	parse_args(int argc, char **argv)
 	args.file = NULL;
 	for (int i = 0; i < 1024; i++)
 		args.port[i] = 0;
-	args.speedup = 0;
+	args.speedup = 1;
 	for (int i = 0; i < 6; i++)
 		args.scans[i] = 0;
 

@@ -68,7 +68,7 @@ unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in s
 	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
 }
 
-int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
 {
 	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
 	struct tcphdr	tcphdr = create_tcp_header(port, TH_SYN);
@@ -91,11 +91,14 @@ int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct socka
 	*(unsigned short *)(packet + sizeof(struct iphdr) + 16) = tcphdr.th_sum;
 
 	// Send the packet
+	pthread_mutex_lock(mutex_socket);
 	if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
 	{
 		perror("sendto");
+		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
+	pthread_mutex_unlock(mutex_socket);
 	return (0);
 }
 

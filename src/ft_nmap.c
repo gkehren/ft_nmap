@@ -1,45 +1,5 @@
 #include "../include/ft_nmap.h"
 
-void	close_pcap(t_nmap *nmap)
-{
-	if (nmap->handle != NULL)
-		pcap_close(nmap->handle);
-	if (nmap->fp.bf_insns != NULL)
-		pcap_freecode(&nmap->fp);
-
-	nmap->handle = NULL;
-	nmap->fp.bf_insns = NULL;
-}
-
-void	close_nmap(t_nmap *nmap)
-{
-	if (nmap->sockfd != -1)
-		close(nmap->sockfd);
-	if (nmap->sockfd_udp != -1)
-		close(nmap->sockfd_udp);
-	if (nmap->alldevs != NULL)
-		pcap_freealldevs(nmap->alldevs);
-	close_pcap(nmap);
-}
-
-char	*get_default_dev(t_nmap *nmap)
-{
-	char		errbuf[PCAP_ERRBUF_SIZE];
-
-	if (pcap_findalldevs(&nmap->alldevs, errbuf) == -1)
-	{
-		fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
-		return (NULL);
-	}
-	if (nmap->alldevs == NULL)
-	{
-		fprintf(stderr, "No devices found.\n");
-		return (NULL);
-	}
-
-	return (nmap->alldevs->name);
-}
-
 int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, char *dev)
 {
 	char	errbuf[PCAP_ERRBUF_SIZE]; // Buffer for error messages
@@ -77,6 +37,90 @@ int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, cha
 	return (0);
 }
 
+int		get_next_port(t_nmap *nmap)
+{
+	int	port = 0;
+
+	pthread_mutex_lock(&nmap->mutex_index);
+	port = nmap->args.port[nmap->index];
+	nmap->index++;
+	pthread_mutex_unlock(&nmap->mutex_index);
+
+	return (port);
+}
+
+void	*thread_scan(void *arg)
+{
+	t_nmap	*nmap = (t_nmap *)arg;
+	int		port = 0;
+
+	while ((port = get_next_port(nmap)) != 0)
+	{
+		pcap_t	*handle;
+		struct bpf_program	fp;
+
+		if (create_pcap(&handle, &fp, port, nmap->args.ip, nmap->alldevs->name) != 0)
+		{
+			close_pcap(handle, &fp);
+			return (void *)1;
+		}
+
+		if (send_syn_scan(nmap->sockfd, port, nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket) != 0)
+		{
+			close_pcap(handle, &fp);
+			destroy_mutex(nmap);
+			return (void *)1;
+		}
+
+		int ret = pcap_dispatch(handle, 0, packet_handler, NULL);
+		if (ret == -1)
+		{
+			fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
+			close_pcap(handle, &fp);
+			return (void *)1;
+		}
+		else if (ret == 0)
+		{
+			printf("No packets were captured\n");
+		}
+		close_pcap(handle, &fp);
+	}
+
+	return (void *)0;
+}
+
+int	scan(t_nmap *nmap)
+{
+	pthread_t	threads[nmap->args.speedup];
+
+	pthread_mutex_init(&nmap->mutex_socket, NULL);
+	pthread_mutex_init(&nmap->mutex_index, NULL);
+	nmap->index = 0;
+
+	for (int i = 0; i < nmap->args.speedup; i++)
+	{
+		if (pthread_create(&threads[i], NULL, thread_scan, (void *)nmap) != 0)
+		{
+			fprintf(stderr, "Error: Couldn't create thread\n");
+			destroy_mutex(nmap);
+			return (1);
+		}
+	}
+
+	for (int i = 0; i < nmap->args.speedup; i++)
+	{
+		if (pthread_join(threads[i], NULL) != 0)
+		{
+			fprintf(stderr, "Error: Couldn't join thread\n");
+			destroy_mutex(nmap);
+			return (1);
+		}
+	}
+
+	destroy_mutex(nmap);
+	return (0);
+}
+
 int	main(int argc, char **argv)
 {
 	if (argc < 2)
@@ -107,38 +151,12 @@ int	main(int argc, char **argv)
 	if (dev == NULL)
 		return (1);
 
-	// ready for threading (pthread) here (speedup) - for now, just loop through the ports
-	// we create a pcap handle for each port because pcap_dispatch is blocking and not thread-safe
-	// we use the same socket for each thread with a mutex
 	printf("Scanning %s (%s)\n", nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr));
-	for (int i = 0; nmap.args.port[i] != 0; i++)
+	if (scan(&nmap) != 0)
 	{
-		if (create_pcap(&nmap.handle, &nmap.fp, nmap.args.port[i], nmap.args.ip, nmap.alldevs->name) != 0)
-		{
-			close_nmap(&nmap);
-			return (1);
-		}
-		if (send_syn_scan(nmap.sockfd, nmap.args.port[i], nmap.srcaddr, nmap.destaddr) != 0)
-		{
-			close_nmap(&nmap);
-			return (1);
-		}
-
-		// pcap_dispatch is blocking and not thread-safe
-		// when no response is received, it will block indefinitely so we need to use poll to set a timeout
-		int ret = pcap_dispatch(nmap.handle, 0, packet_handler, NULL);
-		if (ret == -1)
-		{
-			fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(nmap.handle));
-			return (1);
-		}
-		else if (ret == 0)
-		{
-			printf("No packets were captured\n");
-		}
-		close_pcap(&nmap);
+		close_nmap(&nmap);
+		return (1);
 	}
-
 	close_nmap(&nmap);
 	return (0);
 }
