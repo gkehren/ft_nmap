@@ -21,6 +21,7 @@ void	close_pcap(pcap_t *handle, struct bpf_program *fp)
 void	destroy_mutex(t_nmap *nmap)
 {
 	pthread_mutex_destroy(&nmap->mutex_socket_tcp);
+	pthread_mutex_destroy(&nmap->mutex_socket_udp);
 	pthread_mutex_destroy(&nmap->mutex_index);
 }
 
