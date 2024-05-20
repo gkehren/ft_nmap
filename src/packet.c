@@ -16,19 +16,6 @@ unsigned short	calculate_checksum(unsigned short *addr, int len)
 	return ((unsigned short)~sum);
 }
 
-struct udphdr	create_udp_header(int port)
-{
-	struct udphdr	udphdr;
-
-	udphdr.uh_sport = htons(43906); // Source port (random)
-	udphdr.uh_dport = htons(port); // Destination port
-	udphdr.uh_ulen = htons(sizeof(struct udphdr));
-
-	udphdr.check = 0;
-	udphdr.check = calculate_checksum((unsigned short *)&udphdr, sizeof(struct udphdr));
-	return udphdr;
-}
-
 struct tcphdr	create_tcp_header(int port, int flags)
 {
 	struct tcphdr	tcphdr;
@@ -83,9 +70,8 @@ unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in s
 	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
 }
 
-static int send_udp_scan(int sockfd, int port, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
 {
-	(void)port;
 	pthread_mutex_lock(mutex_socket);
 	if (sendto(sockfd, 0, 0, 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
 	{
@@ -100,11 +86,22 @@ static int send_udp_scan(int sockfd, int port, struct sockaddr_in destaddr, pthr
 
 static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
 {
+	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
 	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
 	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
+
+	// iphdr.check = 0;
+	// iphdr.check = calculate_checksum((unsigned short *)&iphdr, sizeof(struct iphdr));
+
+	// tcphdr.check = 0;
+	// tcphdr.check = calculate_checksum((unsigned short *)&tcphdr, sizeof(struct tcphdr));
+
+	// memcpy(packet, &iphdr, sizeof(struct iphdr));
+	// memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
+
+
 	// Create the packet
-	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
 	memcpy(packet, &iphdr, sizeof(struct iphdr));
 	memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
 
@@ -144,10 +141,9 @@ int	send_scan(t_nmap *nmap, const e_scan_type scan_type, const int port) {
 
 	nmap->destaddr.sin_port = htons(port);
 	if (scan_type == UDP) {
-		return send_udp_scan(nmap->sockfd_udp, port, nmap->destaddr, &nmap->mutex_socket_udp);
+		return send_udp_scan(nmap->sockfd_udp, nmap->destaddr, &nmap->mutex_socket_udp);
 	} else {
 		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_tcp);
-		return 1;
 	}
 }
 
