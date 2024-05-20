@@ -2,8 +2,8 @@
 
 void	close_nmap(t_nmap *nmap)
 {
-	if (nmap->sockfd != -1)
-		close(nmap->sockfd);
+	if (nmap->sockfd_tcp != -1)
+		close(nmap->sockfd_tcp);
 	if (nmap->sockfd_udp != -1)
 		close(nmap->sockfd_udp);
 	if (nmap->alldevs != NULL)
@@ -20,7 +20,7 @@ void	close_pcap(pcap_t *handle, struct bpf_program *fp)
 
 void	destroy_mutex(t_nmap *nmap)
 {
-	pthread_mutex_destroy(&nmap->mutex_socket);
+	pthread_mutex_destroy(&nmap->mutex_socket_tcp);
 	pthread_mutex_destroy(&nmap->mutex_index);
 }
 

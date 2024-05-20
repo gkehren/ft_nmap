@@ -16,6 +16,19 @@ unsigned short	calculate_checksum(unsigned short *addr, int len)
 	return ((unsigned short)~sum);
 }
 
+struct udphdr	create_udp_header(int port)
+{
+	struct udphdr	udphdr;
+	memset(&udphdr, 0, sizeof(struct udphdr));
+	udphdr.uh_sport = htons(43906); // Source port (random)
+	udphdr.uh_dport = htons(port); // Destination port
+	udphdr.uh_ulen = htons(sizeof(struct udphdr));
+
+	udphdr.check = 0;
+	udphdr.check = calculate_checksum((unsigned short *)&udphdr, sizeof(struct udphdr));
+	return (udphdr);
+}
+
 struct tcphdr	create_tcp_header(int port, int flags)
 {
 	struct tcphdr	tcphdr;
@@ -68,10 +81,43 @@ unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in s
 	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
 }
 
-int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+static int send_udp_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+{
+	write(1, "UDP not supported yet\n", 23);
+	return 0;
+
+
+
+	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
+	struct udphdr	udphdr = create_udp_header(port);
+
+	// Create the packet
+	char packet[sizeof(struct iphdr) + sizeof(struct udphdr)] = {0};
+	memcpy(packet, &iphdr, sizeof(struct iphdr));
+	memcpy(packet + sizeof(struct iphdr), &udphdr, sizeof(struct udphdr));
+
+	// Calculate checksum
+	iphdr.check = 0;
+	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr));
+	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
+
+	// Send the packet
+	pthread_mutex_lock(mutex_socket);
+	if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
+	{
+		perror("sendto");
+		pthread_mutex_unlock(mutex_socket);
+		return (1);
+	}
+	write(1, "Sent\n", 5);
+	pthread_mutex_unlock(mutex_socket);
+	return (0);
+}
+
+static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
 {
 	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
-	struct tcphdr	tcphdr = create_tcp_header(port, TH_SYN);
+	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
 	// Create the packet
 	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
@@ -98,8 +144,25 @@ int send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct socka
 		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
+	write(1, "Sent\n", 5);
 	pthread_mutex_unlock(mutex_socket);
 	return (0);
+}
+
+int	send_scan(t_nmap *nmap, const e_scan_type scan_type, const int port) {
+	static const int	tcp_scan_flags[5] = {
+		0, // NULL
+		TH_SYN, // SYN
+		TH_ACK, // ACK
+		TH_FIN, // FIN
+		TH_FIN | TH_PUSH | TH_URG // XMAS
+	};
+
+	if (scan_type == UDP) {
+		return send_udp_scan(nmap->sockfd_tcp, port, nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_udp);
+	} else {
+		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_tcp);
+	}
 }
 
 void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet)
@@ -110,9 +173,9 @@ void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u
 
 	struct tcphdr * tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
 
-	//char src_ip[INET_ADDRSTRLEN];
-	//inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
-	//printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
+	char src_ip[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
+	printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
 
 	if (tcphdr->th_flags & TH_SYN && tcphdr->th_flags & TH_ACK)
 	{

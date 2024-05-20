@@ -25,21 +25,21 @@
 
 # include "../libft/libft.h"
 
-enum scan_type
+typedef enum e_scan_type
 {
-	SYN,
-	null,
-	ACK,
-	FIN,
-	XMAS,
+	null, // = 0,
+	SYN, // = TH_SYN,
+	ACK, // = TH_ACK,
+	FIN, // = TH_FIN,
+	XMAS, // = TH_FIN | TH_PUSH | TH_URG,
 	UDP
-};
+} e_scan_type ;
 
 typedef struct s_args
 {
 	char			*ip;
 	char			*file;
-	int				port[1024];
+	unsigned short	port[1024];
 	int				speedup;
 	int				scans[6];
 }	t_args;
@@ -48,12 +48,13 @@ typedef struct s_nmap
 {
 	t_args				args;
 	int					index;
-	int					sockfd;
+	int					sockfd_tcp;
 	int					sockfd_udp;
 	pcap_if_t			*alldevs;
 	struct sockaddr_in	srcaddr;
 	struct sockaddr_in	destaddr;
-	pthread_mutex_t		mutex_socket;
+	pthread_mutex_t		mutex_socket_tcp;
+	pthread_mutex_t		mutex_socket_udp;
 	pthread_mutex_t		mutex_index;
 }	t_nmap;
 
@@ -76,7 +77,8 @@ struct sockaddr_in	get_sockaddr(char *host);
 int					fill_srcaddr(struct sockaddr_in *srcaddr);
 
 // packet.c
-int					send_syn_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket);
+// int					send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket_tcp);
+int					send_scan(t_nmap *nmap, enum e_scan_type scan_type, int port);
 void				packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet);
 
 // utils.c
