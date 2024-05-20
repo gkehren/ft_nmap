@@ -18,10 +18,12 @@ int	create_socket(int protocol)
 		exit(EXIT_FAILURE);
 	}
 
-	int on = 1;
-	if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
-		perror("setsockopt");
-		return (1);
+	if (protocol == IPPROTO_TCP) {
+		int on = 1;
+		if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
+			perror("setsockopt");
+			return (1);
+		}
 	}
 
 	return (sockfd);

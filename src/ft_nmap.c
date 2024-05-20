@@ -90,11 +90,10 @@ void	*thread_scan(void *arg)
 					printf("Packet successfully captured\n");
 				}
 				// write(1, "Received\n\n", 10);
+				write(1, "\n", 1);
 				close_pcap(handle, &fp);
-
 			}
 			scan_index++;
-			write(1, "\n", 1);
 		}
 	}
 
@@ -106,6 +105,7 @@ int	scan(t_nmap *nmap)
 	pthread_t	threads[nmap->args.speedup];
 
 	pthread_mutex_init(&nmap->mutex_socket_tcp, NULL);
+	pthread_mutex_init(&nmap->mutex_socket_udp, NULL);
 	pthread_mutex_init(&nmap->mutex_index, NULL);
 	nmap->index = 0;
 

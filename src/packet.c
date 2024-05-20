@@ -19,14 +19,14 @@ unsigned short	calculate_checksum(unsigned short *addr, int len)
 struct udphdr	create_udp_header(int port)
 {
 	struct udphdr	udphdr;
-	memset(&udphdr, 0, sizeof(struct udphdr));
+
 	udphdr.uh_sport = htons(43906); // Source port (random)
 	udphdr.uh_dport = htons(port); // Destination port
 	udphdr.uh_ulen = htons(sizeof(struct udphdr));
 
 	udphdr.check = 0;
 	udphdr.check = calculate_checksum((unsigned short *)&udphdr, sizeof(struct udphdr));
-	return (udphdr);
+	return udphdr;
 }
 
 struct tcphdr	create_tcp_header(int port, int flags)
@@ -47,7 +47,6 @@ struct tcphdr	create_tcp_header(int port, int flags)
 struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
 {
 	struct iphdr	iphdr;
-	memset(&iphdr, 0, sizeof(struct iphdr));
 	iphdr.ihl = 5; // Header length
 	iphdr.version = 4; // Version
 	iphdr.tos = 0; // Type of service
@@ -59,7 +58,10 @@ struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in des
 	iphdr.check = 0; // Checksum
 	iphdr.saddr = srcaddr.sin_addr.s_addr; // Source address
 	iphdr.daddr = destaddr.sin_addr.s_addr; // Destination address
-	return (iphdr);
+
+	iphdr.check = 0;
+	iphdr.check = calculate_checksum((unsigned short *)&iphdr, sizeof(struct iphdr));
+	return iphdr;
 }
 
 unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
@@ -81,35 +83,17 @@ unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in s
 	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
 }
 
-static int send_udp_scan(int sockfd, int port, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+static int send_udp_scan(int sockfd, int port, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
 {
-	write(1, "UDP not supported yet\n", 23);
-	return 0;
-
-
-
-	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
-	struct udphdr	udphdr = create_udp_header(port);
-
-	// Create the packet
-	char packet[sizeof(struct iphdr) + sizeof(struct udphdr)] = {0};
-	memcpy(packet, &iphdr, sizeof(struct iphdr));
-	memcpy(packet + sizeof(struct iphdr), &udphdr, sizeof(struct udphdr));
-
-	// Calculate checksum
-	iphdr.check = 0;
-	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr));
-	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
-
-	// Send the packet
+	(void)port;
 	pthread_mutex_lock(mutex_socket);
-	if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
+	if (sendto(sockfd, 0, 0, 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
 	{
 		perror("sendto");
 		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
-	write(1, "Sent\n", 5);
+	write(1, "UDP Sent\n", 9);
 	pthread_mutex_unlock(mutex_socket);
 	return (0);
 }
@@ -144,7 +128,7 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
-	write(1, "Sent\n", 5);
+	write(1, "TCP Sent\n", 9);
 	pthread_mutex_unlock(mutex_socket);
 	return (0);
 }
@@ -158,10 +142,12 @@ int	send_scan(t_nmap *nmap, const e_scan_type scan_type, const int port) {
 		TH_FIN | TH_PUSH | TH_URG // XMAS
 	};
 
+	nmap->destaddr.sin_port = htons(port);
 	if (scan_type == UDP) {
-		return send_udp_scan(nmap->sockfd_tcp, port, nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_udp);
+		return send_udp_scan(nmap->sockfd_udp, port, nmap->destaddr, &nmap->mutex_socket_udp);
 	} else {
 		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_tcp);
+		return 1;
 	}
 }
 
