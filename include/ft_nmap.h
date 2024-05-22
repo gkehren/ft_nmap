@@ -22,6 +22,7 @@
 # include <pcap.h>
 # include <ifaddrs.h>
 # include <pthread.h>
+# include <poll.h>
 
 # include "../libft/libft.h"
 

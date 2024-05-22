@@ -76,19 +76,52 @@ void	*thread_scan(void *arg)
 					return (void *)1;
 				}
 
-				int ret = pcap_dispatch(handle, 1, packet_handler, NULL);
+				int	fd = pcap_get_selectable_fd(handle);
+				if (fd == -1)
+				{
+					fprintf(stderr, "pcap_get_selectable_fd failed: %s\n", pcap_geterr(handle));
+					close_pcap(handle, &fp);
+					destroy_mutex(nmap);
+					return (void *)1;
+				}
+
+				int	timeout = 500;
+				struct pollfd	pfd = {fd, POLLIN, timeout};
+
+				int	ret = poll(&pfd, 1, timeout);
 				if (ret == -1)
 				{
-					fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
+					fprintf(stderr, "poll failed: %s\n", strerror(errno));
 					close_pcap(handle, &fp);
+					destroy_mutex(nmap);
 					return (void *)1;
 				}
 				else if (ret == 0)
 				{
-					printf("No packet were captured\n");
-				} else {
-					printf("Packet successfully captured\n");
+					printf("Port %d filtered\n", port);
 				}
+				else
+				{
+					if (pfd.revents & POLLIN)
+					{
+						int ret = pcap_dispatch(handle, 1, packet_handler, NULL);
+						if (ret == -1)
+						{
+							fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
+							close_pcap(handle, &fp);
+							return (void *)1;
+						}
+						else if (ret == 0)
+						{
+							printf("Port %d filtered\n", port);
+						}
+						else
+						{
+							printf("Packet successfully captured\n");
+						}
+					}
+				}
+
 				// write(1, "Received\n\n", 10);
 				write(1, "\n", 1);
 				close_pcap(handle, &fp);
