@@ -34,6 +34,7 @@ struct tcphdr	create_tcp_header(int port, int flags)
 struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
 {
 	struct iphdr	iphdr;
+	memset(&iphdr, 0, sizeof(struct iphdr));
 	iphdr.ihl = 5; // Header length
 	iphdr.version = 4; // Version
 	iphdr.tos = 0; // Type of service
@@ -45,10 +46,7 @@ struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in des
 	iphdr.check = 0; // Checksum
 	iphdr.saddr = srcaddr.sin_addr.s_addr; // Source address
 	iphdr.daddr = destaddr.sin_addr.s_addr; // Destination address
-
-	iphdr.check = 0;
-	iphdr.check = calculate_checksum((unsigned short *)&iphdr, sizeof(struct iphdr));
-	return iphdr;
+	return (iphdr);
 }
 
 unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
