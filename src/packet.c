@@ -88,17 +88,6 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
 	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
-
-	// iphdr.check = 0;
-	// iphdr.check = calculate_checksum((unsigned short *)&iphdr, sizeof(struct iphdr));
-
-	// tcphdr.check = 0;
-	// tcphdr.check = calculate_checksum((unsigned short *)&tcphdr, sizeof(struct tcphdr));
-
-	// memcpy(packet, &iphdr, sizeof(struct iphdr));
-	// memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
-
-
 	// Create the packet
 	memcpy(packet, &iphdr, sizeof(struct iphdr));
 	memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
@@ -128,13 +117,13 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 	return (0);
 }
 
-int	send_scan(t_nmap *nmap, const e_scan_type scan_type, const int port) {
+int	send_scan(t_nmap *nmap, const t_scan_type scan_type, const int port) {
 	static const int	tcp_scan_flags[5] = {
-		0, // NULL
 		TH_SYN, // SYN
-		TH_ACK, // ACK
+		0, // NULL
 		TH_FIN, // FIN
-		TH_FIN | TH_PUSH | TH_URG // XMAS
+		TH_FIN | TH_PUSH | TH_URG, // XMAS
+		TH_ACK // ACK
 	};
 
 	nmap->destaddr.sin_port = htons(port);

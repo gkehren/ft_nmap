@@ -27,7 +27,7 @@ void	destroy_mutex(t_nmap *nmap)
 
 char	*get_default_dev(t_nmap *nmap)
 {
-	char		errbuf[PCAP_ERRBUF_SIZE];
+	char		errbuf[PCAP_ERRBUF_SIZE] = "";
 
 	if (pcap_findalldevs(&nmap->alldevs, errbuf) == -1)
 	{

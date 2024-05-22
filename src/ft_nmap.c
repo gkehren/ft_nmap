@@ -42,7 +42,7 @@ int		get_next_port(t_nmap *nmap)
 	int	port = 0;
 
 	pthread_mutex_lock(&nmap->mutex_index);
-	port = nmap->args.port[nmap->index];
+	port = nmap->args.port_data[nmap->index].port;
 	nmap->index++;
 	pthread_mutex_unlock(&nmap->mutex_index);
 
@@ -176,7 +176,7 @@ int	main(int argc, char **argv)
 		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]]\n");
 	}
 
-	t_nmap		nmap;
+	t_nmap		nmap = {0};
 	nmap.args = parse_args(argc, argv);
 	nmap.sockfd_tcp = -1;
 	nmap.sockfd_udp = -1;
@@ -197,11 +197,17 @@ int	main(int argc, char **argv)
 		return (1);
 
 	printf("Scanning %s (%s)\n", nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr));
+
+	struct timeval scan_start_time;
+	gettimeofday(&scan_start_time, 0);
+
 	if (scan(&nmap) != 0)
 	{
 		close_nmap(&nmap);
 		return (1);
 	}
+
+	display_final_data(&nmap, scan_start_time);
 	close_nmap(&nmap);
 	return (0);
 }

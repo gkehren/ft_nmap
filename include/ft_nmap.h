@@ -26,29 +26,69 @@
 
 # include "../libft/libft.h"
 
+
+# define FINAL_DISPLAY_NEWLINE "\n                                    "
+
 typedef enum e_scan_type
 {
-	null, // = 0,
 	SYN, // = TH_SYN,
-	ACK, // = TH_ACK,
+	null, // = 0,
 	FIN, // = TH_FIN,
 	XMAS, // = TH_FIN | TH_PUSH | TH_URG,
+	ACK, // = TH_ACK,
 	UDP
-} e_scan_type ;
+}	t_scan_type ;
+
+# define SCAN_TYPE_STRING { \
+	"SYN", \
+	"NULL", \
+	"FIN", \
+	"XMAS", \
+	"ACK", \
+	"UDP" \
+}
+
+typedef enum e_response_result
+{
+	CLOSED			= 1,
+	OPEN			= 2,
+	FILTERED		= 3,
+	OPEN_FILTERED	= 4,
+	UNFILTERED		= 5
+}	t_response_result ;
+
+# define RESPONSE_RESULT_STRING { \
+	"Undefined", \
+	"Closed", \
+	"Open", \
+	"Filtered", \
+	"Open|Filtered", \
+	"Unfiltered" \
+}
+
+typedef struct s_port_data {
+	unsigned short	port;
+	uint8_t			response[6];
+	char			service[64];
+	uint8_t			result;
+	uint8_t			conclusion;
+}	t_port_data;
 
 typedef struct s_args
 {
 	char			*ip;
 	char			*file;
-	unsigned short	port[1024];
-	int				speedup;
-	int				scans[6];
+	t_port_data		port_data[1024];
+	uint16_t		speedup;
+	t_scan_type		scans[6];
+	uint16_t		total_ports;
+	uint16_t		opened_ports;
 }	t_args;
 
 typedef struct s_nmap
 {
 	t_args				args;
-	int					index;
+	uint16_t			index;
 	int					sockfd_tcp;
 	int					sockfd_udp;
 	pcap_if_t			*alldevs;
@@ -87,5 +127,8 @@ void				close_nmap(t_nmap *nmap);
 void				close_pcap(pcap_t *handle, struct bpf_program *fp);
 void				destroy_mutex(t_nmap *nmap);
 char				*get_default_dev(t_nmap *nmap);
+
+// display.c
+void				display_final_data( t_nmap *nmap, struct timeval scan_start_time);
 
 #endif

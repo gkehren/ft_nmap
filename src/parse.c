@@ -19,9 +19,9 @@ void	parse_arg_help(char **argv, int *i)
 int	add_port_end_of_table(t_args *args, int port)
 {
 	int	i = 0;
-	while (args->port[i] != 0)
+	while (args->port_data[i].port != 0)
 	{
-		if (args->port[i] == port)
+		if (args->port_data[i].port == port)
 		{
 			printf("Error: --ports the port %d is already in the list\n", port);
 			return (1);
@@ -33,7 +33,7 @@ int	add_port_end_of_table(t_args *args, int port)
 		printf("Error: --ports the number of ports scanned cannot exceed 1024\n");
 		return (1);
 	}
-	args->port[i] = port;
+	args->port_data[i].port = port;
 	return (0);
 }
 
@@ -215,11 +215,10 @@ t_args	parse_args(int argc, char **argv)
 
 	args.ip = NULL;
 	args.file = NULL;
-	for (int i = 0; i < 1024; i++)
-		args.port[i] = 0;
 	args.speedup = 1;
-	for (int i = 0; i < 6; i++)
-		args.scans[i] = 0;
+
+	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
+	ft_memset(&args.scans, 0, sizeof(t_scan_type) * 6);
 
 	while (i < argc)
 	{
@@ -248,7 +247,7 @@ t_args	parse_args(int argc, char **argv)
 		for (int i = 0; i < 6; i++)
 			args.scans[i] = 1;
 	}
-	if (args.port[0] == 0)
+	if (args.port_data[0].port == 0)
 	{
 		for (int i = 1; i <= 1024; i++)
 			add_port_end_of_table(&args, i);
