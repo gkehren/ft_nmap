@@ -50,6 +50,7 @@ typedef enum e_scan_type
 
 typedef enum e_response_result
 {
+	UNDEFINED		= 0,
 	CLOSED			= 1,
 	OPEN			= 2,
 	FILTERED		= 3,
@@ -67,11 +68,10 @@ typedef enum e_response_result
 }
 
 typedef struct s_port_data {
-	unsigned short	port;
-	uint8_t			response[6];
-	char			service[64];
-	uint8_t			result;
-	uint8_t			conclusion;
+	uint16_t			port;
+	t_response_result	response[6];
+	char				service[64];
+	uint8_t				conclusion;
 }	t_port_data;
 
 typedef struct s_args
@@ -99,6 +99,13 @@ typedef struct s_nmap
 	pthread_mutex_t		mutex_index;
 }	t_nmap;
 
+typedef struct s_user_data {
+	t_nmap			*nmap;
+	t_scan_type		scan_type;
+	uint16_t		port;
+	uint16_t		index;
+}	t_user_data;
+
 typedef struct s_pseudo_header
 {
 	struct in_addr	saddr;
@@ -118,9 +125,9 @@ struct sockaddr_in	get_sockaddr(char *host);
 int					fill_srcaddr(struct sockaddr_in *srcaddr);
 
 // packet.c
-// int					send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket_tcp);
 int					send_scan(t_nmap *nmap, enum e_scan_type scan_type, int port);
 void				packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet);
+t_response_result	process_response(t_user_data *user_data, struct tcphdr *tcphdr, uint8_t timeout);
 
 // utils.c
 void				close_nmap(t_nmap *nmap);

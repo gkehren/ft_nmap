@@ -77,7 +77,6 @@ static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_
 		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
-	write(1, "UDP Sent\n", 9);
 	pthread_mutex_unlock(mutex_socket);
 	return (0);
 }
@@ -112,7 +111,6 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 		pthread_mutex_unlock(mutex_socket);
 		return (1);
 	}
-	write(1, "TCP Sent\n", 9);
 	pthread_mutex_unlock(mutex_socket);
 	return (0);
 }
@@ -134,28 +132,63 @@ int	send_scan(t_nmap *nmap, const t_scan_type scan_type, const int port) {
 	}
 }
 
-void	packet_handler(u_char *user_data, const struct pcap_pkthdr *pkthdr, const u_char *packet)
+t_response_result	process_response(t_user_data *user_data, struct tcphdr *tcphdr, uint8_t timeout) {
+	switch (user_data->scan_type) {
+		case SYN:
+			if (timeout) {
+				return FILTERED;
+			} else if (tcphdr->syn && tcphdr->ack) {
+				return OPEN;
+			} else if (tcphdr->rst) {
+				return CLOSED;
+			}
+			break;
+		case null:
+			if (timeout) {
+				return OPEN_FILTERED;
+			} else if (tcphdr->rst) {
+				return CLOSED;
+			}
+			break;
+		case FIN:
+			if (timeout) {
+				return OPEN_FILTERED;
+			} else if (tcphdr->rst) {
+				return CLOSED;
+			}
+			break;
+		case XMAS:
+			if (timeout) {
+				return OPEN_FILTERED;
+			} else if (tcphdr->rst) {
+				return CLOSED;
+			}
+			break;
+		case ACK:
+			if (timeout) {
+				return OPEN_FILTERED;
+			} else if (tcphdr->rst) {
+				return UNFILTERED;
+			}
+			break;
+		case UDP:
+			if (timeout) {
+				return OPEN_FILTERED;
+			}
+			break;
+		default:
+			return UNDEFINED;
+	}
+
+	return UNDEFINED;
+}
+
+void	packet_handler(u_char *user_data_arg, const struct pcap_pkthdr *pkthdr, const u_char *packet)
 {
 	(void)pkthdr;
-	(void)user_data;
+	t_user_data	*user_data = (t_user_data *)user_data_arg;
 	struct ip *iphdr = (struct ip *)(packet + 14);
+	struct tcphdr *tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
 
-	struct tcphdr * tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
-
-	char src_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &iphdr->ip_src, src_ip, INET_ADDRSTRLEN);
-	printf("Received TCP packet from %s:%d\n", src_ip, ntohs(tcphdr->th_sport));
-
-	if (tcphdr->th_flags & TH_SYN && tcphdr->th_flags & TH_ACK)
-	{
-		printf("Port %d is open\n", ntohs(tcphdr->th_sport));
-	}
-	else if (tcphdr->th_flags & TH_RST)
-	{
-		printf("Port %d is closed\n", ntohs(tcphdr->th_sport));
-	}
-	else
-	{
-		printf("Port %d is filtered\n", ntohs(tcphdr->th_sport));
-	}
+	user_data->nmap->args.port_data[user_data->index].response[user_data->scan_type] = process_response(user_data, tcphdr, 0);
 }

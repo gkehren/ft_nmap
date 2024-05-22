@@ -37,12 +37,13 @@ int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, cha
 	return (0);
 }
 
-int		get_next_port(t_nmap *nmap)
+int		get_next_port(t_nmap *nmap, uint16_t *index)
 {
 	int	port = 0;
 
 	pthread_mutex_lock(&nmap->mutex_index);
 	port = nmap->args.port_data[nmap->index].port;
+	*index = nmap->index;
 	nmap->index++;
 	pthread_mutex_unlock(&nmap->mutex_index);
 
@@ -51,26 +52,28 @@ int		get_next_port(t_nmap *nmap)
 
 void	*thread_scan(void *arg)
 {
-	t_nmap	*nmap = (t_nmap *)arg;
-	int		port = 0;
+	t_nmap			*nmap = (t_nmap *)arg;
+	t_user_data		user_data = {0};
 
-	while ((port = get_next_port(nmap)) != 0)
+	user_data.nmap = nmap;
+	nmap->args.opened_ports = 0;
+	while ((user_data.port = get_next_port(nmap, &user_data.index)) != 0)
 	{
 		int scan_index = 0;
 
 		while (scan_index < 6) {
 			if (nmap->args.scans[scan_index]) {
-				printf("PORT: %d, SCAN_TYPE[%d]: %d\n", port, nmap->args.scans[scan_index], scan_index);
 				pcap_t	*handle;
 				struct bpf_program	fp;
 
-				if (create_pcap(&handle, &fp, port, nmap->args.ip, nmap->alldevs->name) != 0)
+				user_data.scan_type = scan_index;
+				if (create_pcap(&handle, &fp, user_data.port, nmap->args.ip, nmap->alldevs->name) != 0)
 				{
 					close_pcap(handle, &fp);
 					return (void *)1;
 				}
 
-				if (send_scan(nmap, scan_index, port) != 0) {
+				if (send_scan(nmap, scan_index, user_data.port) != 0) {
 					close_pcap(handle, &fp);
 					destroy_mutex(nmap);
 					return (void *)1;
@@ -89,43 +92,33 @@ void	*thread_scan(void *arg)
 				struct pollfd	pfd = {fd, POLLIN, timeout};
 
 				int	ret = poll(&pfd, 1, timeout);
-				if (ret == -1)
-				{
+				if (ret == -1) {
 					fprintf(stderr, "poll failed: %s\n", strerror(errno));
 					close_pcap(handle, &fp);
 					destroy_mutex(nmap);
 					return (void *)1;
 				}
-				else if (ret == 0)
-				{
-					printf("Port %d filtered\n", port);
+				else if (ret == 0) {
+					user_data.nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 				}
-				else
-				{
-					if (pfd.revents & POLLIN)
-					{
-						int ret = pcap_dispatch(handle, 1, packet_handler, NULL);
-						if (ret == -1)
-						{
+				else {
+					if (pfd.revents & POLLIN) {
+						int ret = pcap_dispatch(handle, 1, packet_handler, (u_char *)&user_data);
+						if (ret == -1) {
 							fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
 							close_pcap(handle, &fp);
 							return (void *)1;
 						}
-						else if (ret == 0)
-						{
-							printf("Port %d filtered\n", port);
-						}
-						else
-						{
-							printf("Packet successfully captured\n");
+						else if (ret == 0) {
+							user_data.nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 						}
 					}
 				}
-
-				// write(1, "Received\n\n", 10);
-				write(1, "\n", 1);
 				close_pcap(handle, &fp);
+
 			}
+			// Doit etre remplace par une fonction qui va faire la conclusion
+			user_data.nmap->args.port_data[user_data.index].conclusion = UNDEFINED;
 			scan_index++;
 		}
 	}
@@ -196,7 +189,34 @@ int	main(int argc, char **argv)
 	if (dev == NULL)
 		return (1);
 
-	printf("Scanning %s (%s)\n", nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr));
+	nmap.args.total_ports = 0;
+    for (int i = 0; i < 1024; ++i) {
+        if (nmap.args.port_data[i].port == 0) {
+            break ;
+        }
+        ++nmap.args.total_ports;
+    }
+	printf(
+		"Scan Configurations\n" \
+		"Target Ip-Address : %s (%s)\n" \
+		"No of Ports to scan : %d\n" \
+		"Scans to be performed :",
+		nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr), nmap.args.total_ports
+	);
+
+    const char   scan_type_string[6][5] = SCAN_TYPE_STRING;
+
+	for (int i = 0; i < 6 ; ++i) {
+		if (nmap.args.scans[i]) {
+			printf(" %s", scan_type_string[i]);
+		}
+	}
+
+	printf(
+		"\nNo of threads : %d\n" \
+		"Scanning..\n",
+		nmap.args.speedup
+	);
 
 	struct timeval scan_start_time;
 	gettimeofday(&scan_start_time, 0);

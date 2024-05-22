@@ -65,10 +65,10 @@ static void list_unopened_ports(const t_port_data *port_data, const uint16_t uno
     );
 
     for (int i = 0, ports_displayed = 0; ports_displayed < unopened_ports; ++i) {
-        // if (port_data[i].conclusion && port_data[i].conclusion != OPEN) {
+        if (port_data[i].port && port_data[i].conclusion != OPEN) {
             display_port_data(port_data[i], scan_types, total_scans);
             ++ports_displayed;
-        // }
+        }
     }
 }
 
@@ -80,6 +80,7 @@ static void list_opened_ports(const t_port_data *port_data, const uint16_t opene
     );
 
     for (int i = 0, ports_displayed = 0; ports_displayed < opened_ports; ++i) {
+        if (i < 100)
         if (port_data[i].conclusion == OPEN) {
             display_port_data(port_data[i], scan_types, total_scans);
             ++ports_displayed;
@@ -105,9 +106,6 @@ void display_final_data(t_nmap *nmap, struct timeval scan_start_time) {
             ++total_scans;
         }
     }
-
-    nmap->args.opened_ports = 0;
-    nmap->args.total_ports    = 3;
 
     if (nmap->args.opened_ports) {
         list_opened_ports(nmap->args.port_data, nmap->args.opened_ports, nmap->args.scans, total_scans);
