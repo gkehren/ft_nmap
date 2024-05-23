@@ -146,7 +146,7 @@ void	*thread_scan(void *arg)
 					return (void *)1;
 				}
 
-				int	timeout = 1000;
+				int	timeout = 500;
 				struct pollfd	pfd = {fd, POLLIN, timeout};
 
 				int	ret = poll(&pfd, 1, timeout);
