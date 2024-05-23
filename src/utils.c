@@ -9,15 +9,14 @@ void	close_nmap(t_nmap *nmap)
 	if (nmap->alldevs != NULL)
 		pcap_freealldevs(nmap->alldevs);
 	if (nmap->args.file) {
-		while (nmap->args.ip) {
+		if (nmap->args.ip) {
 			free(nmap->args.ip);
 			nmap->args.ip = NULL;
-			get_next_line(fileno(nmap->args.file_fd), &nmap->args.ip);
-			if (!*nmap->args.ip) {
-				free(nmap->args.ip);
-				break ;
-			}
 		}
+		while (get_next_line(fileno(nmap->args.file_fd), &nmap->args.ip) > 0) {
+			free(nmap->args.ip);
+		}
+		free(nmap->args.ip);
 	}
 	if (nmap->args.file_fd) {
 		fclose(nmap->args.file_fd);

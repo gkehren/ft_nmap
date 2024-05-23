@@ -1,6 +1,15 @@
 #include "../include/ft_nmap.h"
 
 void exit_parsing(t_args* args, int ret) {
+	while (args->ip) {
+		free(args->ip);
+		args->ip = NULL;
+		get_next_line(fileno(args->file_fd), &args->ip);
+		if (!*args->ip) {
+			free(args->ip);
+			break ;
+		}
+	}
 	if (args->file_fd) {
 		fclose(args->file_fd);
 	}
@@ -119,6 +128,10 @@ void	parse_arg_ip(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--ip") == 0)
 	{
+		if (args->file) {
+			printf("Error: --ip and --file are mutually exclusive\n");
+			exit_parsing(args, 1);
+		}
 		if (*i + 1 < argc)
 		{
 			(*i)++;
@@ -136,6 +149,10 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--file") == 0)
 	{
+		if (args->ip) {
+			printf("Error: --ip and --file are mutually exclusive\n");
+			exit_parsing(args, 1);
+		}
 		if (*i + 1 < argc)
 		{
 			(*i)++;

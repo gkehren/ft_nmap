@@ -111,6 +111,9 @@ static int	read_file(int fd, char **s, char **tmp)
 	while ((r = read(fd, read_str, BUFFER_SIZE)) >= 0)
 	{
 		read_str[r] = '\0';
+		if (r == 0 && !*tmp) {
+			return -1;
+		}
 		if (!(*tmp = concatenate_str(*tmp, read_str)))
 			return (-1);
 		if (is_line(read_str) || r < BUFFER_SIZE)
@@ -148,6 +151,7 @@ int			get_next_line(int fd, char **s)
 	if ((r = read_file(fd, s, &tmp)) < 1){
 		if (tmp) {
 			free(tmp);
+			tmp = NULL;
 		}
 	}
 	return (r);
