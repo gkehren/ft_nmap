@@ -70,8 +70,8 @@ typedef enum e_response_result
 typedef struct s_port_data {
 	uint16_t			port;
 	t_response_result	response[6];
-	char				service[64];
-	uint8_t				conclusion;
+	char				service[256];
+	t_response_result	conclusion;
 }	t_port_data;
 
 typedef struct s_args
@@ -136,6 +136,7 @@ void				destroy_mutex(t_nmap *nmap);
 char				*get_default_dev(t_nmap *nmap);
 
 // display.c
-void				display_final_data( t_nmap *nmap, struct timeval scan_start_time);
+void				display_start_data(t_nmap *nmap);
+void				display_end_data(t_nmap *nmap, struct timeval scan_start_time);
 
 #endif

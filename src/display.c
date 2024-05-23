@@ -6,7 +6,7 @@ static void process_results(const t_port_data port_data, const t_scan_type *scan
     static const char   scan_type_string[6][5] = SCAN_TYPE_STRING;
     static const char   response_result_string[6][20] = RESPONSE_RESULT_STRING;
     char                last_line_results[64] = "";
-    uint8_t             total_length = 0, line_length = 0, line_index = 0, scans_index = 0;
+    uint8_t             total_length = 0, line_length = 0, line_index = 0, scans_index = 0, scans_displayed = 0;
 
     if (total_scans == 6) {
         for (; scans_index < 3; ++scans_index) {
@@ -22,19 +22,23 @@ static void process_results(const t_port_data port_data, const t_scan_type *scan
     } else {
         for (; scans_index < 6; ++scans_index) {
             if (scan_types[scans_index]) {
-                if (line_index == total_scans / 2) {
-                    for (; scans_index < 6; ++scans_index) {
-                        if (scan_types[scans_index]) {
-                            line_length += sprintf(last_line_results + line_length, "%s(%s) ",
-                                scan_type_string[scans_index], response_result_string[port_data.response[scans_index]]);
+                ++scans_displayed;
+                if (line_index == (total_scans - 1) / 2) {
+                    if (scans_displayed == total_scans) {
+                        if (port_data.response[scans_index] == OPEN_FILTERED && line_length > (ft_strlen(response_result_string[OPEN_FILTERED]) + 5)) {
+                            sprintf(last_line_results + line_length, "%s", FINAL_DISPLAY_NEWLINE);
+                            total_length += sprintf(dest + total_length, "%s", last_line_results);
+                            sprintf(last_line_results, "%s(%s) ", scan_type_string[scans_index], response_result_string[port_data.response[scans_index]]);
+                        } else {
+                            line_length += sprintf(last_line_results + line_length, "%s(%s) ", scan_type_string[scans_index], response_result_string[port_data.response[scans_index]]);
                         }
+                        sprintf(dest + total_length, "%-36s", last_line_results);
+                    } else {
+                        line_length += sprintf(last_line_results + line_length, "%s(%s) ", scan_type_string[scans_index], response_result_string[port_data.response[scans_index]]);
                     }
-                    sprintf(dest + total_length, "%-36s", last_line_results);
-                    break ;
                 } else {
-                    total_length += sprintf(dest + total_length, "%s(%s)%s",
-                        scan_type_string[scans_index], response_result_string[port_data.response[scans_index]], scans_index % 2 == 0 ? " " : "");
-                    if (scans_index % 2 == 1) {
+                    total_length += sprintf(dest + total_length, "%s(%s) ", scan_type_string[scans_index], response_result_string[port_data.response[scans_index]]);
+                    if ((scans_displayed - 1) % 2 == 1 && scans_displayed < total_scans) {
                         total_length += sprintf(dest + total_length, "%s", FINAL_DISPLAY_NEWLINE);
                         ++line_index;
                     }
@@ -80,7 +84,6 @@ static void list_opened_ports(const t_port_data *port_data, const uint16_t opene
     );
 
     for (int i = 0, ports_displayed = 0; ports_displayed < opened_ports; ++i) {
-        if (i < 100)
         if (port_data[i].conclusion == OPEN) {
             display_port_data(port_data[i], scan_types, total_scans);
             ++ports_displayed;
@@ -88,15 +91,15 @@ static void list_opened_ports(const t_port_data *port_data, const uint16_t opene
     }
 }
 
-void display_final_data(t_nmap *nmap, struct timeval scan_start_time) {
+void display_end_data(t_nmap *nmap, struct timeval scan_start_time) {
     struct timeval  currtime, diff;
     uint8_t         total_scans = 0;
 
     gettimeofday(&currtime, 0);
     timersub(&currtime, &scan_start_time, &diff);
     printf(
-        "Scan took %ld.%ld secs\n" \
-        "IP address: %s\n", \
+        "\nScan took %ld.%ld secs\n" \
+        "IP address: %s", \
         diff.tv_sec, diff.tv_usec,
         inet_ntoa(((struct sockaddr_in)nmap->destaddr).sin_addr)
     );
@@ -114,4 +117,35 @@ void display_final_data(t_nmap *nmap, struct timeval scan_start_time) {
     if (nmap->args.total_ports > nmap->args.opened_ports) {
         list_unopened_ports(nmap->args.port_data, nmap->args.total_ports - nmap->args.opened_ports, nmap->args.scans, total_scans);
     }
+}
+
+void display_start_data(t_nmap *nmap) {
+    nmap->args.total_ports = 0;
+    for (int i = 0; i < 1024; ++i) {
+        if (nmap->args.port_data[i].port == 0) {
+            break ;
+        }
+        ++nmap->args.total_ports;
+    }
+	printf(
+		"Scan Configurations\n" \
+		"Target Ip-Address : %s (%s)\n" \
+		"No of Ports to scan : %d\n" \
+		"Scans to be performed :",
+		nmap->args.ip, inet_ntoa(((struct sockaddr_in)nmap->destaddr).sin_addr), nmap->args.total_ports
+	);
+
+    const char   scan_type_string[6][5] = SCAN_TYPE_STRING;
+
+	for (int i = 0; i < 6 ; ++i) {
+		if (nmap->args.scans[i]) {
+			printf(" %s", scan_type_string[i]);
+		}
+	}
+
+	printf(
+		"\nNo of threads : %d\n" \
+		"Scanning..\n",
+		nmap->args.speedup
+	);
 }

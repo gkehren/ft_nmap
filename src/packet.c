@@ -189,6 +189,11 @@ void	packet_handler(u_char *user_data_arg, const struct pcap_pkthdr *pkthdr, con
 	t_user_data	*user_data = (t_user_data *)user_data_arg;
 	struct ip *iphdr = (struct ip *)(packet + 14);
 	struct tcphdr *tcphdr = (struct tcphdr *)(packet + 14 + iphdr->ip_hl * 4);
+	struct servent *service = NULL;
 
 	user_data->nmap->args.port_data[user_data->index].response[user_data->scan_type] = process_response(user_data, tcphdr, 0);
+	service = getservbyport(htons(user_data->nmap->args.port_data[user_data->index].port), iphdr->ip_p == IPPROTO_TCP ? "tcp" : "udp");
+	if (service) {
+		ft_strcpy(user_data->nmap->args.port_data[user_data->index].service, service->s_name);
+	}
 }
