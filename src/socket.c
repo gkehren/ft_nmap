@@ -55,6 +55,8 @@ int fill_srcaddr(struct sockaddr_in *srcaddr)
 	struct ifaddrs *ifaddr, *ifa;
 	struct sockaddr_in local_ip;
 
+	ft_memset(&local_ip, 0, sizeof(local_ip));
+
 	if (getifaddrs(&ifaddr) == -1)
 	{
 		perror("getifaddrs");

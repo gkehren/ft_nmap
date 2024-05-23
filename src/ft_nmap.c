@@ -104,6 +104,7 @@ int		get_next_port(t_nmap *nmap, uint16_t *index)
 
 	pthread_mutex_lock(&nmap->mutex_index);
 	if (nmap->index >= 1024) {
+	pthread_mutex_unlock(&nmap->mutex_index);
 		return 0;
 	}
 	port = nmap->args.port_data[nmap->index].port;
@@ -120,7 +121,7 @@ void	*thread_scan(void *arg)
 	t_user_data		user_data = {0};
 
 	user_data.nmap = nmap;
-	while ((user_data.port = get_next_port(nmap, &user_data.index)) != 0)
+	while ((user_data.port = get_next_port(nmap, &user_data.index)) > 0)
 	{
 		pthread_mutex_lock(&mutex_flag);
 		if (stop_flag == 1)
@@ -134,7 +135,8 @@ void	*thread_scan(void *arg)
 
 		while (scan_index < 6) {
 			if (nmap->args.scans[scan_index]) {
-				write(1, ".", 1);
+				int w = write(1, ".", 1);
+				(void)w;
 				pcap_t	*handle;
 				struct bpf_program	fp;
 
@@ -320,7 +322,8 @@ int	main(int argc, char **argv)
 				nmap.args.ip = NULL;
 			}
 			get_next_line(fileno(nmap.args.file_fd), &nmap.args.ip);
-			write(1, "\n\n", 2);
+			int w = write(1, "\n\n", 2);
+			(void)w;
 		} else {
 			break ;
 		}

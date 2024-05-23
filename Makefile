@@ -6,7 +6,7 @@ CC:=gcc
 SRCPATH:=src/
 INCLUDES:= -I./include
 CCHPATH:=obj/
-CFLAGS:=-Wall -Werror -Wextra -g3
+CFLAGS:=-Wall -Werror -Wextra -O3
 # ==================
 
 # ----- Library -----
