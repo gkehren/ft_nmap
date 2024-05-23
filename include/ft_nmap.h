@@ -23,6 +23,7 @@
 # include <ifaddrs.h>
 # include <pthread.h>
 # include <poll.h>
+# include <signal.h>
 
 # include "../libft/libft.h"
 
@@ -87,16 +88,16 @@ typedef struct s_args
 
 typedef struct s_nmap
 {
-	t_args				args;
-	uint16_t			index;
-	int					sockfd_tcp;
-	int					sockfd_udp;
-	pcap_if_t			*alldevs;
-	struct sockaddr_in	srcaddr;
-	struct sockaddr_in	destaddr;
-	pthread_mutex_t		mutex_socket_tcp;
-	pthread_mutex_t		mutex_socket_udp;
-	pthread_mutex_t		mutex_index;
+	t_args					args;
+	uint16_t				index;
+	int						sockfd_tcp;
+	int						sockfd_udp;
+	pcap_if_t				*alldevs;
+	struct sockaddr_in		srcaddr;
+	struct sockaddr_in		destaddr;
+	pthread_mutex_t			mutex_socket_tcp;
+	pthread_mutex_t			mutex_socket_udp;
+	pthread_mutex_t			mutex_index;
 }	t_nmap;
 
 typedef struct s_user_data {

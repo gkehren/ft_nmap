@@ -1,5 +1,8 @@
 #include "../include/ft_nmap.h"
 
+volatile sig_atomic_t	stop_flag = 0;
+pthread_mutex_t			mutex_flag;
+
 int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, char *dev)
 {
 	char	errbuf[PCAP_ERRBUF_SIZE]; // Buffer for error messages
@@ -58,6 +61,14 @@ void	*thread_scan(void *arg)
 	user_data.nmap = nmap;
 	while ((user_data.port = get_next_port(nmap, &user_data.index)) != 0)
 	{
+		pthread_mutex_lock(&mutex_flag);
+		if (stop_flag == 1)
+		{
+			pthread_mutex_unlock(&mutex_flag);
+			break ;
+		}
+		pthread_mutex_unlock(&mutex_flag);
+
 		int scan_index = 0;
 
 		while (scan_index < 6) {
@@ -114,7 +125,6 @@ void	*thread_scan(void *arg)
 					}
 				}
 				close_pcap(handle, &fp);
-
 			}
 			// Doit etre remplace par une fonction qui va faire la conclusion
 			user_data.nmap->args.port_data[user_data.index].conclusion = UNDEFINED;
@@ -128,24 +138,35 @@ void	*thread_scan(void *arg)
 int	scan(t_nmap *nmap)
 {
 	pthread_t	threads[nmap->args.speedup];
-
 	pthread_mutex_init(&nmap->mutex_socket_tcp, NULL);
 	pthread_mutex_init(&nmap->mutex_socket_udp, NULL);
 	pthread_mutex_init(&nmap->mutex_index, NULL);
+	pthread_mutex_init(&mutex_flag, NULL);
 	nmap->index = 0;
 	nmap->args.opened_ports = 0;
 
+	int thread_count = 0;
+
 	for (int i = 0; i < nmap->args.speedup; i++)
 	{
+		pthread_mutex_lock(&mutex_flag);
+		if (stop_flag == 1)
+		{
+			pthread_mutex_unlock(&mutex_flag);
+			break ;
+		}
+		pthread_mutex_unlock(&mutex_flag);
+
 		if (pthread_create(&threads[i], NULL, thread_scan, (void *)nmap) != 0)
 		{
 			fprintf(stderr, "Error: Couldn't create thread\n");
 			destroy_mutex(nmap);
 			return (1);
 		}
+		thread_count++;
 	}
 
-	for (int i = 0; i < nmap->args.speedup; i++)
+	for (int i = 0; i < thread_count; i++)
 	{
 		if (pthread_join(threads[i], NULL) != 0)
 		{
@@ -159,6 +180,18 @@ int	scan(t_nmap *nmap)
 	return (0);
 }
 
+void	sig_handler(int sig, siginfo_t *info, void *ucontext)
+{
+	(void)sig;
+	(void)info;
+	(void)ucontext;
+
+	pthread_mutex_lock(&mutex_flag);
+	stop_flag = 1;
+	pthread_mutex_unlock(&mutex_flag);
+	printf("\nSIGINT received, shutting down..\n");
+}
+
 int	main(int argc, char **argv)
 {
 	if (argc < 2)
@@ -167,6 +200,17 @@ int	main(int argc, char **argv)
 		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]]\n");
 		printf("Or:\n");
 		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]]\n");
+	}
+
+	struct sigaction	sa;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO;
+	sa.sa_sigaction = sig_handler;
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+	{
+		fprintf(stderr, "Error: Couldn't set signal handler\n");
+		return (1);
 	}
 
 	t_nmap		nmap = {0};
@@ -190,12 +234,12 @@ int	main(int argc, char **argv)
 		return (1);
 
 	nmap.args.total_ports = 0;
-    for (int i = 0; i < 1024; ++i) {
-        if (nmap.args.port_data[i].port == 0) {
-            break ;
-        }
-        ++nmap.args.total_ports;
-    }
+	for (int i = 0; i < 1024; ++i) {
+		if (nmap.args.port_data[i].port == 0) {
+			break ;
+		}
+		++nmap.args.total_ports;
+	}
 	printf(
 		"Scan Configurations\n" \
 		"Target Ip-Address : %s (%s)\n" \
@@ -204,7 +248,7 @@ int	main(int argc, char **argv)
 		nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr), nmap.args.total_ports
 	);
 
-    const char   scan_type_string[6][5] = SCAN_TYPE_STRING;
+	const char	scan_type_string[6][5] = SCAN_TYPE_STRING;
 
 	for (int i = 0; i < 6 ; ++i) {
 		if (nmap.args.scans[i]) {
@@ -227,7 +271,8 @@ int	main(int argc, char **argv)
 		return (1);
 	}
 
-	display_final_data(&nmap, scan_start_time);
+	if (stop_flag != 1)
+		display_final_data(&nmap, scan_start_time);
 	close_nmap(&nmap);
 	return (0);
 }
