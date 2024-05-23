@@ -188,6 +188,11 @@ void	*thread_scan(void *arg)
 						}
 					}
 				}
+				struct servent *service = NULL;
+				service = getservbyport(htons(user_data.nmap->args.port_data[user_data.index].port), scan_index == UDP ? "udp" : "tcp");
+				if (service) {
+					ft_strcpy(user_data.nmap->args.port_data[user_data.index].service, service->s_name);
+				}
 				close_pcap(handle, &fp);
 			}
 			scan_index++;
