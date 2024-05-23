@@ -40,6 +40,64 @@ int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, cha
 	return (0);
 }
 
+static t_response_result	get_conclusion(t_response_result response_results[6], t_scan_type scans[6]) {
+	if (scans[SYN]) {
+		if (response_results[SYN] == OPEN) {
+			return OPEN;
+		} else if (response_results[SYN] == CLOSED) {
+			return CLOSED;
+		}
+	}
+
+	int scans_amt = 0;
+
+	for (int i = 0; i < 6; ++i) {
+		if (scans[i]) {
+			++scans_amt;
+		}
+	}
+
+	if (scans_amt == 1) {
+		for (int i = 0; i < 6; ++i) {
+			if (scans[i]) {
+				return response_results[i];
+			}
+		}
+	}
+
+	t_scan_type	response_count[6] = {0};
+
+	for (int i = 0; i < 6; ++i) {
+		if (scans[i]) {
+			++response_count[response_results[i]];
+		}
+	}
+
+	uint8_t		max = response_count[0];
+	uint8_t		dupes = 0;
+
+	for (int i = 1; i < 6; ++i) {
+		if (response_count[i] > max) {
+			max = i;
+			dupes = 0;
+		} else if (response_count[i] == max) {
+			++dupes;
+		}
+	}
+
+	if (!dupes) {
+		return max;
+	} else {
+		for (int i = 0; i < 6; ++i) {
+			if (scans[i] && response_count[i] == max) {
+				return response_results[i];
+			}
+		}
+	}
+
+	return UNDEFINED;
+}
+
 int		get_next_port(t_nmap *nmap, uint16_t *index)
 {
 	int	port = 0;
@@ -71,6 +129,7 @@ void	*thread_scan(void *arg)
 
 		int scan_index = 0;
 
+		write(1, ".", 1);
 		while (scan_index < 6) {
 			if (nmap->args.scans[scan_index]) {
 				pcap_t	*handle;
@@ -109,7 +168,7 @@ void	*thread_scan(void *arg)
 					return (void *)1;
 				}
 				else if (ret == 0) {
-					user_data.nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
+					nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 				}
 				else {
 					if (pfd.revents & POLLIN) {
@@ -120,15 +179,16 @@ void	*thread_scan(void *arg)
 							return (void *)1;
 						}
 						else if (ret == 0) {
-							user_data.nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
+							nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 						}
 					}
 				}
 				close_pcap(handle, &fp);
 			}
-			// Doit etre remplace par une fonction qui va faire la conclusion
-			user_data.nmap->args.port_data[user_data.index].conclusion = UNDEFINED;
 			scan_index++;
+		}
+		if ((nmap->args.port_data[user_data.index].conclusion = get_conclusion(nmap->args.port_data[user_data.index].response, nmap->args.scans)) == OPEN) {
+			nmap->args.opened_ports++;
 		}
 	}
 
@@ -223,56 +283,43 @@ int	main(int argc, char **argv)
 	if (nmap.args.scans[UDP] == 1)
 		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
-	nmap.destaddr = get_sockaddr(nmap.args.ip);
-	if (fill_srcaddr(&nmap.srcaddr) != 0)
-	{
-		close_nmap(&nmap);
-		return (1);
-	}
-	char	*dev = get_default_dev(&nmap); // Network device to capture packets from
-	if (dev == NULL)
-		return (1);
+	while (nmap.args.ip) {
+		nmap.destaddr = get_sockaddr(nmap.args.ip);
+		if (fill_srcaddr(&nmap.srcaddr) != 0)
+		{
+			close_nmap(&nmap);
+			return (1);
+		}
+		char	*dev = get_default_dev(&nmap); // Network device to capture packets from
+		if (dev == NULL)
+			return (1);
 
-	nmap.args.total_ports = 0;
-	for (int i = 0; i < 1024; ++i) {
-		if (nmap.args.port_data[i].port == 0) {
+		display_start_data(&nmap);
+
+		struct timeval scan_start_time;
+		gettimeofday(&scan_start_time, 0);
+
+		if (scan(&nmap) != 0)
+		{
+			close_nmap(&nmap);
+			return (1);
+		}
+
+		if (stop_flag == 1)
+			break ;
+
+		display_end_data(&nmap, scan_start_time);
+
+		if (nmap.args.file) {
+			// if (nmap.args.ip) {
+			// 	free(nmap.args.ip);
+			// }
+			// get_next_line(fileno(nmap.args.file_fd), &nmap.args.ip);
+		} else {
 			break ;
 		}
-		++nmap.args.total_ports;
-	}
-	printf(
-		"Scan Configurations\n" \
-		"Target Ip-Address : %s (%s)\n" \
-		"No of Ports to scan : %d\n" \
-		"Scans to be performed :",
-		nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr), nmap.args.total_ports
-	);
-
-	const char	scan_type_string[6][5] = SCAN_TYPE_STRING;
-
-	for (int i = 0; i < 6 ; ++i) {
-		if (nmap.args.scans[i]) {
-			printf(" %s", scan_type_string[i]);
-		}
 	}
 
-	printf(
-		"\nNo of threads : %d\n" \
-		"Scanning..\n",
-		nmap.args.speedup
-	);
-
-	struct timeval scan_start_time;
-	gettimeofday(&scan_start_time, 0);
-
-	if (scan(&nmap) != 0)
-	{
-		close_nmap(&nmap);
-		return (1);
-	}
-
-	if (stop_flag != 1)
-		display_final_data(&nmap, scan_start_time);
 	close_nmap(&nmap);
 	return (0);
 }
