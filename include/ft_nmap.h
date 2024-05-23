@@ -78,6 +78,7 @@ typedef struct s_args
 {
 	char			*ip;
 	char			*file;
+	FILE			*file_fd;
 	t_port_data		port_data[1024];
 	uint16_t		speedup;
 	t_scan_type		scans[6];

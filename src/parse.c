@@ -1,6 +1,14 @@
 #include "../include/ft_nmap.h"
 
-void	parse_arg_help(char **argv, int *i)
+void exit_parsing(t_args* args, int ret) {
+	if (args->file_fd) {
+		fclose(args->file_fd);
+	}
+
+	exit(ret);
+}
+
+void	parse_arg_help(t_args *args, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--help") == 0)
 	{
@@ -12,7 +20,7 @@ void	parse_arg_help(char **argv, int *i)
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
-		exit(0);
+		exit_parsing(args, 0);
 	}
 }
 
@@ -73,12 +81,12 @@ void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 					{
 						printf("Error: --ports incorrect range port (1-65535)\n");
 						ft_free(tokens);
-						exit(1);
+						exit_parsing(args, 1);
 					}
 					if (add_port_range(args, begin, end) == 1)
 					{
 						ft_free(tokens);
-						exit(1);
+						exit_parsing(args, 1);
 					}
 				}
 				else
@@ -88,12 +96,12 @@ void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 					{
 						printf("Error: --ports incorrect range port (1-65535)\n");
 						ft_free(tokens);
-						exit(1);
+						exit_parsing(args, 1);
 					}
 					if (add_port_end_of_table(args, port) == 1)
 					{
 						ft_free(tokens);
-						exit(1);
+						exit_parsing(args, 1);
 					}
 				}
 			}
@@ -102,7 +110,7 @@ void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 		else
 		{
 			printf("Error: --ports requires an argument\n");
-			exit(1);
+			exit_parsing(args, 1);
 		}
 	}
 }
@@ -119,7 +127,7 @@ void	parse_arg_ip(t_args *args, int argc, char **argv, int *i)
 		else
 		{
 			printf("Error: --ip requires an argument\n");
-			exit(1);
+			exit_parsing(args, 1);
 		}
 	}
 }
@@ -132,11 +140,15 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 		{
 			(*i)++;
 			args->file = argv[*i];
+			if ((args->file_fd = fopen(args->file, "r")) == NULL) {
+				perror("fopen");
+				exit_parsing(args, 1);
+			}
 		}
 		else
 		{
 			printf("Error: --file requires an argument\n");
-			exit(1);
+			exit_parsing(args, 1);
 		}
 	}
 }
@@ -152,19 +164,19 @@ void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 			if (speedup > 250)
 			{
 				printf("Error: --speedup must be less than 250\n");
-				exit(1);
+				exit_parsing(args, 1);
 			}
 			else if (speedup < 0)
 			{
 				printf("Error: --speedup must be positive\n");
-				exit(1);
+				exit_parsing(args, 1);
 			}
 			args->speedup = speedup;
 		}
 		else
 		{
 			printf("Error: --speedup requires an argument\n");
-			exit(1);
+			exit_parsing(args, 1);
 		}
 	}
 }
@@ -195,7 +207,7 @@ void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 				else
 				{
 					printf("Error: --scan must be one of SYN/NULL/ACK/FIN/XMAS/UDP\n");
-					exit(1);
+					exit_parsing(args, 1);
 				}
 				token = strtok(NULL, ",");
 			}
@@ -203,7 +215,7 @@ void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 		else
 		{
 			printf("Error: --scan requires an argument\n");
-			exit(1);
+			exit_parsing(args, 1);
 		}
 	}
 }
@@ -215,6 +227,7 @@ t_args	parse_args(int argc, char **argv)
 
 	args.ip = NULL;
 	args.file = NULL;
+	args.file_fd = NULL;
 	args.speedup = 1;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
@@ -222,7 +235,7 @@ t_args	parse_args(int argc, char **argv)
 
 	while (i < argc)
 	{
-		parse_arg_help(argv, &i);
+		parse_arg_help(&args, argv, &i);
 		parse_arg_ports(&args, argc, argv, &i);
 		parse_arg_ip(&args, argc, argv, &i);
 		parse_arg_file(&args, argc, argv, &i);
@@ -234,12 +247,12 @@ t_args	parse_args(int argc, char **argv)
 	if (args.ip == NULL && args.file == NULL)
 	{
 		printf("Error: --ip or --file is required\n");
-		exit(1);
+		exit_parsing(&args, 1);
 	}
 	else if (args.ip != NULL && args.file != NULL)
 	{
 		printf("Error: --ip and --file are mutually exclusive\n");
-		exit(1);
+		exit_parsing(&args, 1);
 	}
 
 	if (args.scans[SYN] == 0 && args.scans[null] == 0 && args.scans[ACK] == 0 && args.scans[FIN] == 0 && args.scans[XMAS] == 0 && args.scans[UDP] == 0)

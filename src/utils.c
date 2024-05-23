@@ -8,6 +8,9 @@ void	close_nmap(t_nmap *nmap)
 		close(nmap->sockfd_udp);
 	if (nmap->alldevs != NULL)
 		pcap_freealldevs(nmap->alldevs);
+	if (nmap->args.file_fd) {
+		fclose(nmap->args.file_fd);
+	}
 }
 
 void	close_pcap(pcap_t *handle, struct bpf_program *fp)
