@@ -124,11 +124,12 @@ int	send_scan(t_nmap *nmap, const t_scan_type scan_type, const int port) {
 		TH_ACK // ACK
 	};
 
-	nmap->destaddr.sin_port = htons(port);
+	struct sockaddr_in	destaddr = nmap->destaddr;
+	destaddr.sin_port = htons(port);
 	if (scan_type == UDP) {
-		return send_udp_scan(nmap->sockfd_udp, nmap->destaddr, &nmap->mutex_socket_udp);
+		return send_udp_scan(nmap->sockfd_udp, destaddr, &nmap->mutex_socket_udp);
 	} else {
-		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, nmap->destaddr, &nmap->mutex_socket_tcp);
+		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, destaddr, &nmap->mutex_socket_tcp);
 	}
 }
 

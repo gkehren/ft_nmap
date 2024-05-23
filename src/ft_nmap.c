@@ -56,7 +56,6 @@ void	*thread_scan(void *arg)
 	t_user_data		user_data = {0};
 
 	user_data.nmap = nmap;
-	nmap->args.opened_ports = 0;
 	while ((user_data.port = get_next_port(nmap, &user_data.index)) != 0)
 	{
 		int scan_index = 0;
@@ -134,6 +133,7 @@ int	scan(t_nmap *nmap)
 	pthread_mutex_init(&nmap->mutex_socket_udp, NULL);
 	pthread_mutex_init(&nmap->mutex_index, NULL);
 	nmap->index = 0;
+	nmap->args.opened_ports = 0;
 
 	for (int i = 0; i < nmap->args.speedup; i++)
 	{
