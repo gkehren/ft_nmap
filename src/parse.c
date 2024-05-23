@@ -143,6 +143,8 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 			if ((args->file_fd = fopen(args->file, "r")) == NULL) {
 				perror("fopen");
 				exit_parsing(args, 1);
+			} else {
+				get_next_line(fileno(args->file_fd), &args->ip);
 			}
 		}
 		else
@@ -249,11 +251,11 @@ t_args	parse_args(int argc, char **argv)
 		printf("Error: --ip or --file is required\n");
 		exit_parsing(&args, 1);
 	}
-	else if (args.ip != NULL && args.file != NULL)
-	{
-		printf("Error: --ip and --file are mutually exclusive\n");
-		exit_parsing(&args, 1);
-	}
+	// else if (args.ip != NULL && args.file != NULL)
+	// {
+	// 	printf("Error: --ip and --file are mutually exclusive\n");
+	// 	exit_parsing(&args, 1);
+	// }
 
 	if (args.scans[SYN] == 0 && args.scans[null] == 0 && args.scans[ACK] == 0 && args.scans[FIN] == 0 && args.scans[XMAS] == 0 && args.scans[UDP] == 0)
 	{

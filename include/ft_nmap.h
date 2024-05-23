@@ -141,4 +141,8 @@ char				*get_default_dev(t_nmap *nmap);
 void				display_start_data(t_nmap *nmap);
 void				display_end_data(t_nmap *nmap, struct timeval scan_start_time);
 
+// get_next_line.c
+int					get_next_line(int fd, char **s);
+
+
 #endif

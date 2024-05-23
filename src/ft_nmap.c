@@ -283,16 +283,17 @@ int	main(int argc, char **argv)
 	if (nmap.args.scans[UDP] == 1)
 		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
 
-	while (nmap.args.ip) {
+	char	*dev = get_default_dev(&nmap); // Network device to capture packets from
+	if (dev == NULL)
+		return (1);
+
+	while (nmap.args.ip && *nmap.args.ip) {
 		nmap.destaddr = get_sockaddr(nmap.args.ip);
 		if (fill_srcaddr(&nmap.srcaddr) != 0)
 		{
 			close_nmap(&nmap);
 			return (1);
 		}
-		char	*dev = get_default_dev(&nmap); // Network device to capture packets from
-		if (dev == NULL)
-			return (1);
 
 		display_start_data(&nmap);
 
@@ -311,10 +312,12 @@ int	main(int argc, char **argv)
 		display_end_data(&nmap, scan_start_time);
 
 		if (nmap.args.file) {
-			// if (nmap.args.ip) {
-			// 	free(nmap.args.ip);
-			// }
-			// get_next_line(fileno(nmap.args.file_fd), &nmap.args.ip);
+			if (nmap.args.ip) {
+				free(nmap.args.ip);
+				nmap.args.ip = NULL;
+			}
+			get_next_line(fileno(nmap.args.file_fd), &nmap.args.ip);
+			write(1, "\n\n", 2);
 		} else {
 			break ;
 		}
