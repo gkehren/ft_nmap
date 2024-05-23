@@ -103,6 +103,9 @@ int		get_next_port(t_nmap *nmap, uint16_t *index)
 	int	port = 0;
 
 	pthread_mutex_lock(&nmap->mutex_index);
+	if (nmap->index >= 1024) {
+		return 0;
+	}
 	port = nmap->args.port_data[nmap->index].port;
 	*index = nmap->index;
 	nmap->index++;
@@ -129,9 +132,9 @@ void	*thread_scan(void *arg)
 
 		int scan_index = 0;
 
-		write(1, ".", 1);
 		while (scan_index < 6) {
 			if (nmap->args.scans[scan_index]) {
+				write(1, ".", 1);
 				pcap_t	*handle;
 				struct bpf_program	fp;
 
