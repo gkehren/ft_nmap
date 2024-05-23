@@ -1,16 +1,15 @@
 #include "../include/ft_nmap.h"
 
 void exit_parsing(t_args* args, int ret) {
-	while (args->ip) {
-		free(args->ip);
-		args->ip = NULL;
-		get_next_line(fileno(args->file_fd), &args->ip);
-		if (!*args->ip) {
-			free(args->ip);
-			break ;
-		}
-	}
 	if (args->file_fd) {
+		if (args->ip) {
+			free(args->ip);
+			args->ip = NULL;
+		}
+		while (get_next_line(fileno(args->file_fd), &args->ip) > 0) {
+			free(args->ip);
+		}
+		free(args->ip);
 		fclose(args->file_fd);
 	}
 
@@ -268,11 +267,6 @@ t_args	parse_args(int argc, char **argv)
 		printf("Error: --ip or --file is required\n");
 		exit_parsing(&args, 1);
 	}
-	// else if (args.ip != NULL && args.file != NULL)
-	// {
-	// 	printf("Error: --ip and --file are mutually exclusive\n");
-	// 	exit_parsing(&args, 1);
-	// }
 
 	if (args.scans[SYN] == 0 && args.scans[null] == 0 && args.scans[ACK] == 0 && args.scans[FIN] == 0 && args.scans[XMAS] == 0 && args.scans[UDP] == 0)
 	{

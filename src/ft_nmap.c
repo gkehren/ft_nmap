@@ -288,7 +288,7 @@ int	main(int argc, char **argv)
 		return (1);
 
 	while (nmap.args.ip && *nmap.args.ip) {
-		nmap.destaddr = get_sockaddr(nmap.args.ip);
+		nmap.destaddr = get_sockaddr(&nmap, nmap.args.ip);
 		if (fill_srcaddr(&nmap.srcaddr) != 0)
 		{
 			close_nmap(&nmap);

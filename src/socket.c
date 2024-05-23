@@ -29,7 +29,7 @@ int	create_socket(int protocol)
 	return (sockfd);
 }
 
-struct sockaddr_in	get_sockaddr(char *host)
+struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host)
 {
 	struct addrinfo hints, *res;
 	int status;
@@ -41,6 +41,7 @@ struct sockaddr_in	get_sockaddr(char *host)
 	if ((status = getaddrinfo(host, NULL, &hints, &res)) != 0)
 	{
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+		close_nmap(nmap);
 		exit(EXIT_FAILURE);
 	}
 

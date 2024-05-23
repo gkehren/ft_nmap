@@ -123,7 +123,7 @@ void	close_nmap(t_nmap *nmap);
 
 // socket.c
 int					create_socket(int protocol);
-struct sockaddr_in	get_sockaddr(char *host);
+struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host);
 int					fill_srcaddr(struct sockaddr_in *srcaddr);
 
 // packet.c
