@@ -78,6 +78,7 @@ typedef struct s_port_data {
 typedef struct s_args
 {
 	char			*ip;
+	char			*spoof;
 	char			*file;
 	FILE			*file_fd;
 	t_port_data		port_data[1024];
@@ -124,7 +125,7 @@ void	close_nmap(t_nmap *nmap);
 // socket.c
 int					create_socket(int protocol);
 struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host);
-int					fill_srcaddr(struct sockaddr_in *srcaddr);
+int					fill_srcaddr(t_nmap *nmap, struct sockaddr_in *srcaddr);
 
 // packet.c
 int					send_scan(t_nmap *nmap, enum e_scan_type scan_type, int port);

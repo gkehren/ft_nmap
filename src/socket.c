@@ -50,10 +50,15 @@ struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host)
 	return (ip_address);
 }
 
-int fill_srcaddr(struct sockaddr_in *srcaddr)
+int fill_srcaddr(t_nmap *nmap, struct sockaddr_in *srcaddr)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct sockaddr_in local_ip;
+
+	if (nmap->args.spoof) {
+		nmap->srcaddr = get_sockaddr(nmap, nmap->args.spoof);
+		return (0);
+	}
 
 	ft_memset(&local_ip, 0, sizeof(local_ip));
 

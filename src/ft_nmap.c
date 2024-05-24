@@ -297,21 +297,20 @@ int	main(int argc, char **argv)
 	if (dev == NULL)
 		return (1);
 
+	if (fill_srcaddr(&nmap, &nmap.srcaddr) != 0) {
+		close_nmap(&nmap);
+		return (1);
+	}
+
 	while (nmap.args.ip && *nmap.args.ip) {
 		nmap.destaddr = get_sockaddr(&nmap, nmap.args.ip);
-		if (fill_srcaddr(&nmap.srcaddr) != 0)
-		{
-			close_nmap(&nmap);
-			return (1);
-		}
 
 		display_start_data(&nmap);
 
 		struct timeval scan_start_time;
 		gettimeofday(&scan_start_time, 0);
 
-		if (scan(&nmap) != 0)
-		{
+		if (scan(&nmap) != 0) {
 			close_nmap(&nmap);
 			return (1);
 		}

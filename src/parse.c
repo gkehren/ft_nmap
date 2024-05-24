@@ -171,6 +171,20 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
+void	parse_arg_spoof(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--spoof") == 0)
+	{
+		if (*i + 1 < argc) {
+			(*i)++;
+			args->spoof = argv[*i];
+		} else {
+			printf("Error: --spoof requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
 void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--speedup") == 0)
@@ -257,6 +271,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_ports(&args, argc, argv, &i);
 		parse_arg_ip(&args, argc, argv, &i);
 		parse_arg_file(&args, argc, argv, &i);
+		parse_arg_spoof(&args, argc, argv, &i);
 		parse_arg_speedup(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
 		i++;
