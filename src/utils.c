@@ -21,6 +21,9 @@ void	close_nmap(t_nmap *nmap)
 	if (nmap->args.file_fd) {
 		fclose(nmap->args.file_fd);
 	}
+	if (nmap->args.rand_ip) {
+		free(nmap->args.rand_ip);
+	}
 }
 
 void	close_pcap(pcap_t *handle, struct bpf_program *fp)
@@ -54,4 +57,26 @@ char	*get_default_dev(t_nmap *nmap)
 	}
 
 	return (nmap->alldevs->name);
+}
+
+char *generate_random_ip(void) {
+    unsigned char	byte1, byte2, byte3, byte4;
+	char			*s = NULL;
+
+    byte1 = rand() % 256;
+    byte2 = rand() % 256;
+    byte3 = rand() % 256;
+    byte4 = rand() % 256;
+
+    while ((byte1 == 10) || (byte1 == 172 && (byte2 >= 16 && byte2 <= 31)) || (byte1 == 192 && byte2 == 168)) {
+        byte1 = rand() % 256;
+        byte2 = rand() % 256;
+        byte3 = rand() % 256;
+        byte4 = rand() % 256;
+    }
+
+	s = (char *)malloc(sizeof(char) * 16);
+    sprintf(s, "%d.%d.%d.%d", byte1, byte2, byte3, byte4);
+
+	return s;
 }

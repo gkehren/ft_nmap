@@ -13,6 +13,10 @@ void exit_parsing(t_args* args, int ret) {
 		fclose(args->file_fd);
 	}
 
+	if (args->rand_ip) {
+		free(args->rand_ip);
+	}
+
 	exit(ret);
 }
 
@@ -26,6 +30,8 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --ports\t\tports to scan (eg: 1-10 or 1,2,3 or 1,5-15)\n");
 		printf(" --ip\t\t\tip addresses to scan in dot format\n");
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
+		printf(" --random\t\tChoose random targets (0 for unlimited)\n");
+		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
 		exit_parsing(args, 0);
@@ -127,8 +133,8 @@ void	parse_arg_ip(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--ip") == 0)
 	{
-		if (args->file) {
-			printf("Error: --ip and --file are mutually exclusive\n");
+		if (args->file || args->rand_ip_amt > RAND_IP_AMT_INIT) {
+			printf("Error: --ip, --file and --random are mutually exclusive\n");
 			exit_parsing(args, 1);
 		}
 		if (*i + 1 < argc)
@@ -148,8 +154,8 @@ void	parse_arg_file(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--file") == 0)
 	{
-		if (args->ip) {
-			printf("Error: --ip and --file are mutually exclusive\n");
+		if (args->ip || args->rand_ip_amt > RAND_IP_AMT_INIT) {
+			printf("Error: --ip, --file and --random are mutually exclusive\n");
 			exit_parsing(args, 1);
 		}
 		if (*i + 1 < argc)
@@ -198,7 +204,7 @@ void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 				printf("Error: --speedup must be less than 250\n");
 				exit_parsing(args, 1);
 			}
-			else if (speedup < 0)
+			else if (speedup <= 0)
 			{
 				printf("Error: --speedup must be positive\n");
 				exit_parsing(args, 1);
@@ -208,6 +214,39 @@ void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 		else
 		{
 			printf("Error: --speedup requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
+void	parse_arg_random_ip(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--random") == 0)
+	{
+		if (args->ip || args->file) {
+			printf("Error: --ip, --file and --random are mutually exclusive\n");
+			exit_parsing(args, 1);
+		}
+		if (*i + 1 < argc)
+		{
+			(*i)++;
+			int	random_amt = ft_atoi(argv[*i]);
+			if (random_amt < 0) {
+				printf("Error: --random must be positive\n");
+				exit_parsing(args, 1);
+			} else if (random_amt == 0 && argv[*i][0] != '0') {
+				printf("Error: --random invalid argument\n");
+				exit_parsing(args, 1);
+			}
+			args->rand_ip_amt = --random_amt;
+			if ((args->rand_ip = generate_random_ip()) == NULL) {
+				fprintf(stderr, "generate_random_ip malloc error\n");
+				exit_parsing(args, EXIT_FAILURE);
+			}
+			args->ip = args->rand_ip;
+		}
+		else {
+			printf("Error: --random requires an argument\n");
 			exit_parsing(args, 1);
 		}
 	}
@@ -260,7 +299,10 @@ t_args	parse_args(int argc, char **argv)
 	args.ip = NULL;
 	args.file = NULL;
 	args.file_fd = NULL;
+	args.spoof = NULL;
 	args.speedup = 1;
+	args.rand_ip_amt = RAND_IP_AMT_INIT;
+	args.rand_ip = NULL;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
 	ft_memset(&args.scans, 0, sizeof(t_scan_type) * 6);
@@ -273,6 +315,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_file(&args, argc, argv, &i);
 		parse_arg_spoof(&args, argc, argv, &i);
 		parse_arg_speedup(&args, argc, argv, &i);
+		parse_arg_random_ip(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
 		i++;
 	}

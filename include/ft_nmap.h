@@ -29,6 +29,7 @@
 
 
 # define FINAL_DISPLAY_NEWLINE "\n                                    "
+# define RAND_IP_AMT_INIT -2
 
 typedef enum e_scan_type
 {
@@ -79,10 +80,12 @@ typedef struct s_args
 {
 	char			*ip;
 	char			*spoof;
+	char			*rand_ip;
 	char			*file;
 	FILE			*file_fd;
 	t_port_data		port_data[1024];
 	uint16_t		speedup;
+	int				rand_ip_amt;
 	t_scan_type		scans[6];
 	uint16_t		total_ports;
 	uint16_t		opened_ports;
@@ -137,13 +140,10 @@ void				close_nmap(t_nmap *nmap);
 void				close_pcap(pcap_t *handle, struct bpf_program *fp);
 void				destroy_mutex(t_nmap *nmap);
 char				*get_default_dev(t_nmap *nmap);
+char				*generate_random_ip(void);
 
 // display.c
 void				display_start_data(t_nmap *nmap);
 void				display_end_data(t_nmap *nmap, struct timeval scan_start_time);
-
-// get_next_line.c
-int					get_next_line(int fd, char **s);
-
 
 #endif

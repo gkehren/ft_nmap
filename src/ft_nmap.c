@@ -267,9 +267,13 @@ int	main(int argc, char **argv)
 	if (argc < 2)
 	{
 		printf("Usage:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
 		printf("Or:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
+		printf("Or:\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --random N [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
+		printf("\n");
+		return (0);
 	}
 
 	struct sigaction	sa;
@@ -326,11 +330,24 @@ int	main(int argc, char **argv)
 				nmap.args.ip = NULL;
 			}
 			get_next_line(fileno(nmap.args.file_fd), &nmap.args.ip);
-			int w = write(1, "\n\n", 2);
-			(void)w;
+		} else if (nmap.args.rand_ip_amt && nmap.args.rand_ip_amt != RAND_IP_AMT_INIT) {
+			if (nmap.args.rand_ip_amt > 0) {
+				--nmap.args.rand_ip_amt;
+			}
+			free(nmap.args.rand_ip);
+			nmap.args.rand_ip = NULL;
+			if ((nmap.args.rand_ip = generate_random_ip()) == NULL) {
+				fprintf(stderr, "generate_random_ip malloc error\n");
+				close_nmap(&nmap);
+				exit(EXIT_FAILURE);
+			}
+			nmap.args.ip = nmap.args.rand_ip;
 		} else {
 			break ;
 		}
+
+		int w = write(1, "\n\n", 2);
+		(void)w;
 	}
 
 	close_nmap(&nmap);
