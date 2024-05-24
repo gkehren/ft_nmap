@@ -24,6 +24,10 @@ void exit_parsing(t_args* args, int ret) {
 		free(args->excludes);
 	}
 
+	if (args->exclude_ports_range) {
+		free(args->exclude_ports_range);
+	}
+
 	exit(ret);
 }
 
@@ -39,6 +43,7 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
 		printf(" --random\t\tChoose random targets (0 for unlimited)\n");
 		printf(" --exclude\t\tExclude hosts/networks\n");
+		printf(" --exclude-ports\t\tExclude ports\n");
 		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
@@ -277,6 +282,74 @@ void	parse_arg_exclude(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
+void	parse_arg_exclude_port(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--exclude-ports") == 0)
+	{
+		if (*i + 1 < argc)
+		{
+			char **port_ranges = NULL;
+			args->exclude_ports_range_size = 0;
+
+			(*i)++;
+			port_ranges = ft_split(argv[*i], ',');
+			if (!port_ranges) {
+				printf("Error: --exclude-ports ft_split error\n");
+				exit_parsing(args, 1);
+			}
+
+			for (int i = 0; port_ranges[i]; ++i) {
+				++args->exclude_ports_range_size;
+			}
+
+			if ((args->exclude_ports_range = (t_port_range *)malloc(sizeof(t_port_range) * args->exclude_ports_range_size)) == NULL) {
+				for (int i = 0; port_ranges[i]; ++i) {
+					free(port_ranges[i]);
+				}
+				free(port_ranges);
+
+				printf("Error: --exclude-ports malloc error\n");
+				exit_parsing(args, 1);
+			}
+
+			for (int i = 0, j = 0; port_ranges[i]; ++i) {
+				args->exclude_ports_range[i].min = ft_atoi(port_ranges[i]);
+				j = 0;
+				for (; port_ranges[i][j]; ++j) {
+					if (port_ranges[i][j] == '-') {
+						break ;
+					}
+				}
+				if (port_ranges[i][j] == '-') {
+					args->exclude_ports_range[i].max = ft_atoi(&port_ranges[i][j + 1]);
+				} else {
+					args->exclude_ports_range[i].max = ft_atoi(port_ranges[i]);
+				}
+
+				if (args->exclude_ports_range[i].min > args->exclude_ports_range[i].max ||
+						args->exclude_ports_range[i].max <= 0 || args->exclude_ports_range[i].min <= 0) {
+					printf("Error: --exclude-ports bad range '%s'\n", port_ranges[i]);
+
+					for (int i = 0; port_ranges[i]; ++i) {
+						free(port_ranges[i]);
+					}
+					free(port_ranges);
+					exit_parsing(args, 1);
+				}
+			}
+
+			for (int i = 0; port_ranges[i]; ++i) {
+				free(port_ranges[i]);
+			}
+			free(port_ranges);
+		}
+		else {
+			printf("Error: --exclude-ports requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
 void	parse_arg_random_ip(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--random") == 0)
@@ -349,6 +422,29 @@ void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
+void exclude_ports(t_args *args) {
+	int	excluded_ports = 0;
+	int	is_valid = 1;
+
+	for (int i = 0; i < 1024 && args->port_data[i].port; ++i) {
+		is_valid = 1;
+		for (int j = 0; j < args->exclude_ports_range_size; ++j) {
+			if (args->port_data[i].port >= args->exclude_ports_range[j].min && args->port_data[i].port <= args->exclude_ports_range[j].max) {
+				is_valid = 0;
+				++excluded_ports;
+				break;
+			}
+		}
+
+		if (is_valid && excluded_ports) {
+			args->port_data[i - excluded_ports].port = args->port_data[i].port;
+			args->port_data[i].port = 0;
+		} else if (!is_valid) {
+			args->port_data[i].port = 0;
+		}
+	}
+}
+
 void	parse_arg_ttl(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--ttl") == 0)
@@ -410,6 +506,7 @@ t_args	parse_args(int argc, char **argv)
 	args.excludes = NULL;
 	args.ttl = 64;
 	args.data_length = 0;
+	args.exclude_ports_range = NULL;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
 	ft_memset(&args.scans, 0, sizeof(t_scan_type) * 6);
@@ -424,6 +521,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_speedup(&args, argc, argv, &i);
 		parse_arg_random_ip(&args, argc, argv, &i);
 		parse_arg_exclude(&args, argc, argv, &i);
+		parse_arg_exclude_port(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
 		parse_arg_ttl(&args, argc, argv, &i);
 		parse_arg_data_length(&args, argc, argv, &i);
@@ -445,6 +543,11 @@ t_args	parse_args(int argc, char **argv)
 	{
 		for (int i = 1; i <= 1024; i++)
 			add_port_end_of_table(&args, i);
+	}
+
+	if (args.exclude_ports_range) {
+		exclude_ports(&args);
+		free(args.exclude_ports_range);
 	}
 
 	return (args);
