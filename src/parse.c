@@ -43,10 +43,12 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
 		printf(" --random\t\tChoose random targets (0 for unlimited)\n");
 		printf(" --exclude\t\tExclude hosts/networks\n");
-		printf(" --exclude-ports\t\tExclude ports\n");
+		printf(" --exclude-ports\tExclude ports\n");
 		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
+		printf(" --ttl\t\t\tSet IP time-to-live\n");
+		printf(" --data-length\t\tSet data length\n");
 		exit_parsing(args, 0);
 	}
 }
@@ -471,6 +473,29 @@ void	parse_arg_ttl(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
+void	parse_arg_data_length(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--data-length") == 0)
+	{
+		if (*i + 1 < argc)
+		{
+			(*i)++;
+			int	data_length = ft_atoi(argv[*i]);
+			if (data_length < 0 || data_length > 1460)
+			{
+				printf("Error: --data-length must be between 0 and 1460\n");
+				exit_parsing(args, 1);
+			}
+			args->data_length = data_length;
+		}
+		else
+		{
+			printf("Error: --data-length requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
 t_args	parse_args(int argc, char **argv)
 {
 	t_args	args;
@@ -485,6 +510,7 @@ t_args	parse_args(int argc, char **argv)
 	args.rand_ip = NULL;
 	args.excludes = NULL;
 	args.ttl = 64;
+	args.data_length = 0;
 	args.exclude_ports_range = NULL;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
@@ -503,6 +529,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_exclude_port(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
 		parse_arg_ttl(&args, argc, argv, &i);
+		parse_arg_data_length(&args, argc, argv, &i);
 		i++;
 	}
 
