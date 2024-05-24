@@ -104,7 +104,7 @@ void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 				{
 					int	begin = ft_atoi(strtok(token, "-"));
 					int	end = ft_atoi(strtok(NULL, "-"));
-					if (begin < 1 || begin > 65535 || end < 1 || end > 65535)
+					if (begin < 1 || begin > 65535 || end < 1 || end > 65535 || begin > end)
 					{
 						printf("Error: --ports incorrect range port (1-65535)\n");
 						ft_free(tokens);
@@ -312,8 +312,9 @@ void	parse_arg_exclude_port(t_args *args, int argc, char **argv, int *i)
 				exit_parsing(args, 1);
 			}
 
+			int max, min;
 			for (int i = 0, j = 0; port_ranges[i]; ++i) {
-				args->exclude_ports_range[i].min = ft_atoi(port_ranges[i]);
+				min = ft_atoi(port_ranges[i]);
 				j = 0;
 				for (; port_ranges[i][j]; ++j) {
 					if (port_ranges[i][j] == '-') {
@@ -321,13 +322,12 @@ void	parse_arg_exclude_port(t_args *args, int argc, char **argv, int *i)
 					}
 				}
 				if (port_ranges[i][j] == '-') {
-					args->exclude_ports_range[i].max = ft_atoi(&port_ranges[i][j + 1]);
+					max = ft_atoi(&port_ranges[i][j + 1]);
 				} else {
-					args->exclude_ports_range[i].max = ft_atoi(port_ranges[i]);
+					max = ft_atoi(port_ranges[i]);
 				}
 
-				if (args->exclude_ports_range[i].min > args->exclude_ports_range[i].max ||
-						args->exclude_ports_range[i].max <= 0 || args->exclude_ports_range[i].min <= 0) {
+				if (min > max || max <= 0 || min <= 0 || max > 65535 || min > 65535) {
 					printf("Error: --exclude-ports bad range '%s'\n", port_ranges[i]);
 
 					for (int i = 0; port_ranges[i]; ++i) {
@@ -336,6 +336,9 @@ void	parse_arg_exclude_port(t_args *args, int argc, char **argv, int *i)
 					free(port_ranges);
 					exit_parsing(args, 1);
 				}
+
+				args->exclude_ports_range[i].min = min;
+				args->exclude_ports_range[i].max = max;
 			}
 
 			for (int i = 0; port_ranges[i]; ++i) {
