@@ -43,7 +43,7 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
 		printf(" --random\t\tChoose random targets (0 for unlimited)\n");
 		printf(" --exclude\t\tExclude hosts/networks\n");
-		printf(" --exclude-ports\t\tExclude ports\n");
+		printf(" --exclude-ports\tExclude ports\n");
 		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
