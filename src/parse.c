@@ -47,6 +47,8 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
+		printf(" --ttl\t\t\tSet IP time-to-live\n");
+		printf(" --data-length\t\tSet data length\n");
 		exit_parsing(args, 0);
 	}
 }
