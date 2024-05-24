@@ -31,7 +31,7 @@ struct tcphdr	create_tcp_header(int port, int flags)
 	return (tcphdr);
 }
 
-struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr, int ttl)
 {
 	struct iphdr	iphdr;
 	memset(&iphdr, 0, sizeof(struct iphdr));
@@ -41,7 +41,7 @@ struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in des
 	iphdr.tot_len = htons(sizeof(struct iphdr) + sizeof(struct tcphdr)); // Total length
 	iphdr.id = 0; // Identification
 	iphdr.frag_off = htons(0); // Fragment offset
-	iphdr.ttl = 64; // Time to live
+	iphdr.ttl = ttl; // Time to live
 	iphdr.protocol = IPPROTO_TCP; // Protocol
 	iphdr.check = 0; // Checksum
 	iphdr.saddr = srcaddr.sin_addr.s_addr; // Source address
@@ -81,10 +81,10 @@ static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_
 	return (0);
 }
 
-static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket, int ttl)
 {
 	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
-	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr);
+	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr, ttl);
 	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
 	// Create the packet
@@ -129,7 +129,7 @@ int	send_scan(t_nmap *nmap, const t_scan_type scan_type, const int port) {
 	if (scan_type == UDP) {
 		return send_udp_scan(nmap->sockfd_udp, destaddr, &nmap->mutex_socket_udp);
 	} else {
-		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, destaddr, &nmap->mutex_socket_tcp);
+		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, destaddr, &nmap->mutex_socket_tcp, nmap->args.ttl);
 	}
 }
 

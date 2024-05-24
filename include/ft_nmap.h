@@ -90,6 +90,7 @@ typedef struct s_args
 	t_scan_type		scans[6];
 	uint16_t		total_ports;
 	uint16_t		opened_ports;
+	uint16_t		ttl;
 }	t_args;
 
 typedef struct s_nmap
@@ -127,7 +128,7 @@ t_args	parse_args(int argc, char **argv);
 void	close_nmap(t_nmap *nmap);
 
 // socket.c
-int					create_socket(int protocol);
+int					create_socket(int protocol, int ttl);
 struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host);
 int					fill_srcaddr(t_nmap *nmap, struct sockaddr_in *srcaddr);
 

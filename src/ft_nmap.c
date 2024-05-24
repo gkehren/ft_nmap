@@ -293,9 +293,9 @@ int	main(int argc, char **argv)
 	nmap.sockfd_udp = -1;
 
 	if (nmap.args.scans[SYN] == 1 || nmap.args.scans[null] == 1 || nmap.args.scans[ACK] == 1 || nmap.args.scans[FIN] == 1 || nmap.args.scans[XMAS] == 1)
-		nmap.sockfd_tcp = create_socket(IPPROTO_TCP);
+		nmap.sockfd_tcp = create_socket(IPPROTO_TCP, -1);
 	if (nmap.args.scans[UDP] == 1)
-		nmap.sockfd_udp = create_socket(IPPROTO_UDP);
+		nmap.sockfd_udp = create_socket(IPPROTO_UDP, nmap.args.ttl);
 
 	char	*dev = get_default_dev(&nmap); // Network device to capture packets from
 	if (dev == NULL)
