@@ -76,6 +76,11 @@ typedef struct s_port_data {
 	t_response_result	conclusion;
 }	t_port_data;
 
+typedef struct s_port_range {
+	uint16_t			min;
+	uint16_t			max;
+}	t_port_range;
+
 typedef struct s_args
 {
 	char			*ip;
@@ -84,6 +89,8 @@ typedef struct s_args
 	char			*file;
 	char			**excludes;
 	FILE			*file_fd;
+	t_port_range	*exclude_ports_range;
+	int				exclude_ports_range_size;
 	t_port_data		port_data[1024];
 	uint16_t		speedup;
 	int				rand_ip_amt;

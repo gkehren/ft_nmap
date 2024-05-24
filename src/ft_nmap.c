@@ -267,11 +267,11 @@ int	main(int argc, char **argv)
 	if (argc < 2)
 	{
 		printf("Usage:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]] [--exclude-ports [NUMBER/RANGED]]\n");
 		printf("Or:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]] [--exclude-ports [NUMBER/RANGED]]\n");
 		printf("Or:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --random N [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --random N [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]] [--exclude-ports [NUMBER/RANGED]]\n");
 		printf("\n");
 		return (0);
 	}
