@@ -17,6 +17,13 @@ void exit_parsing(t_args* args, int ret) {
 		free(args->rand_ip);
 	}
 
+	if (args->excludes) {
+		for (int i = 0; args->excludes[i]; ++i) {
+			free(args->excludes[i]);
+		}
+		free(args->excludes);
+	}
+
 	exit(ret);
 }
 
@@ -31,6 +38,7 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 		printf(" --ip\t\t\tip addresses to scan in dot format\n");
 		printf(" --file\t\t\tFile name containing IP addresses to scan\n");
 		printf(" --random\t\tChoose random targets (0 for unlimited)\n");
+		printf(" --exclude\t\tExclude hosts/networks\n");
 		printf(" --spoof\t\tSpoof source address\n");
 		printf(" --speedup\t\t[250 max] number of parallel threads to use\n");
 		printf(" --scan\t\t\tSYN/NULL/FIN/XMAS/ACK/UDP\n");
@@ -219,6 +227,56 @@ void	parse_arg_speedup(t_args *args, int argc, char **argv, int *i)
 	}
 }
 
+void	parse_arg_exclude(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--exclude") == 0)
+	{
+		if (*i + 1 < argc)
+		{
+			(*i)++;
+			args->excludes = ft_split(argv[*i], ',');
+			if (!args->excludes) {
+				printf("Error: --exclude ft_split error\n");
+				exit_parsing(args, 1);
+			}
+
+			struct sockaddr_in ipv4_check;
+
+			for (int i = 0; args->excludes[i]; ++i) {
+				if (inet_pton(AF_INET, args->excludes[i], &ipv4_check) != 1) {
+					struct addrinfo hints, *res;
+					int status;
+
+					memset(&hints, 0, sizeof(hints));
+					hints.ai_family = AF_INET;
+					hints.ai_socktype = SOCK_STREAM;
+
+					if ((status = getaddrinfo(args->excludes[i], NULL, &hints, &res)) != 0) {
+						fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+						exit_parsing(args, EXIT_FAILURE);
+					}
+
+					struct sockaddr_in ip_address = *(struct sockaddr_in *)res->ai_addr;
+					freeaddrinfo(res);
+
+					char *new_ip = ft_strdup(inet_ntoa(ip_address.sin_addr));
+					if (!new_ip) {
+						fprintf(stderr, "--exclude ft_strdup error\n");
+						exit_parsing(args, EXIT_FAILURE);
+					} else {
+						free(args->excludes[i]);
+						args->excludes[i] = new_ip;
+					}
+				}
+			}
+		}
+		else {
+			printf("Error: --exclude requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
 void	parse_arg_random_ip(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--random") == 0)
@@ -303,6 +361,7 @@ t_args	parse_args(int argc, char **argv)
 	args.speedup = 1;
 	args.rand_ip_amt = RAND_IP_AMT_INIT;
 	args.rand_ip = NULL;
+	args.excludes = NULL;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
 	ft_memset(&args.scans, 0, sizeof(t_scan_type) * 6);
@@ -316,6 +375,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_spoof(&args, argc, argv, &i);
 		parse_arg_speedup(&args, argc, argv, &i);
 		parse_arg_random_ip(&args, argc, argv, &i);
+		parse_arg_exclude(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
 		i++;
 	}

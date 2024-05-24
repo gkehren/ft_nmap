@@ -267,11 +267,11 @@ int	main(int argc, char **argv)
 	if (argc < 2)
 	{
 		printf("Usage:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --ip IP_ADDRESS [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
 		printf("Or:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --file FILE [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
 		printf("Or:\n");
-		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --random N [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]]\n");
+		printf("> ft_nmap [--help] [--ports [NUMBER/RANGED]] --random N [--speedup [NUMBER]] [--scan [TYPE]] [--spoof [IP_ADDRESS]] [--exclude [IP_ADDRESS/HOSTNAME]]\n");
 		printf("\n");
 		return (0);
 	}
@@ -308,21 +308,25 @@ int	main(int argc, char **argv)
 
 	while (nmap.args.ip && *nmap.args.ip) {
 		nmap.destaddr = get_sockaddr(&nmap, nmap.args.ip);
+		if (!is_excluded(inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr), nmap.args.excludes)) {
 
-		display_start_data(&nmap);
+			display_start_data(&nmap);
 
-		struct timeval scan_start_time;
-		gettimeofday(&scan_start_time, 0);
+			struct timeval scan_start_time;
+			gettimeofday(&scan_start_time, 0);
 
-		if (scan(&nmap) != 0) {
-			close_nmap(&nmap);
-			return (1);
+			if (scan(&nmap) != 0) {
+				close_nmap(&nmap);
+				return (1);
+			}
+
+			if (stop_flag == 1)
+				break ;
+
+			display_end_data(&nmap, scan_start_time);
+		} else {
+			printf("Ip Address '%s' (%s) is excluded.\n", nmap.args.ip, inet_ntoa(((struct sockaddr_in)nmap.destaddr).sin_addr));
 		}
-
-		if (stop_flag == 1)
-			break ;
-
-		display_end_data(&nmap, scan_start_time);
 
 		if (nmap.args.file) {
 			if (nmap.args.ip) {

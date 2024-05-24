@@ -82,6 +82,7 @@ typedef struct s_args
 	char			*spoof;
 	char			*rand_ip;
 	char			*file;
+	char			**excludes;
 	FILE			*file_fd;
 	t_port_data		port_data[1024];
 	uint16_t		speedup;
@@ -141,6 +142,7 @@ void				close_pcap(pcap_t *handle, struct bpf_program *fp);
 void				destroy_mutex(t_nmap *nmap);
 char				*get_default_dev(t_nmap *nmap);
 char				*generate_random_ip(void);
+int					is_excluded(char *ip, char **excludes);
 
 // display.c
 void				display_start_data(t_nmap *nmap);

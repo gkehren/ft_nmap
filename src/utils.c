@@ -24,6 +24,13 @@ void	close_nmap(t_nmap *nmap)
 	if (nmap->args.rand_ip) {
 		free(nmap->args.rand_ip);
 	}
+
+	if (nmap->args.excludes) {
+		for (int i = 0; nmap->args.excludes[i]; ++i) {
+			free(nmap->args.excludes[i]);
+		}
+		free(nmap->args.excludes);
+	}
 }
 
 void	close_pcap(pcap_t *handle, struct bpf_program *fp)
@@ -79,4 +86,19 @@ char *generate_random_ip(void) {
     sprintf(s, "%d.%d.%d.%d", byte1, byte2, byte3, byte4);
 
 	return s;
+}
+
+int is_excluded(char *ip, char **excludes) {
+	if (!ip || !excludes || !*excludes) {
+		return 0;
+	}
+
+	while (*excludes) {
+		if (ft_strcmp(ip, *excludes) == 0) {
+			return 1;
+		}
+		++excludes;
+	}
+
+	return 0;
 }
