@@ -49,29 +49,31 @@ struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in des
 	return (iphdr);
 }
 
-unsigned short calculate_tcp_checksum(struct tcphdr tcphdr, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
+unsigned short calculate_tcp_checksum(unsigned char *packet, int packet_len, struct sockaddr_in srcaddr, struct sockaddr_in destaddr)
 {
 	t_pseudo_header	pseudo_header;
 	pseudo_header.saddr = srcaddr.sin_addr;
 	pseudo_header.daddr = destaddr.sin_addr;
 	pseudo_header.zero = 0;
 	pseudo_header.protocol = IPPROTO_TCP;
-	pseudo_header.tcp_len = htons(sizeof(struct tcphdr));
+	pseudo_header.tcp_len = htons(packet_len - sizeof(struct iphdr));
 
-	char pseudo_packet[sizeof(pseudo_header) + sizeof(struct tcphdr)];
+	char pseudo_packet[sizeof(pseudo_header) + packet_len - sizeof(struct iphdr)];
 	memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
-	memcpy(pseudo_packet + sizeof(pseudo_header), &tcphdr, sizeof(struct tcphdr));
+	memcpy(pseudo_packet + sizeof(pseudo_header), packet + sizeof(struct iphdr), packet_len - sizeof(struct iphdr));
 
-	tcphdr.th_sum = 0;
-	unsigned short tcp_len = htons(sizeof(struct tcphdr));
-	memcpy(pseudo_packet + sizeof(pseudo_header) - sizeof(tcp_len), &tcp_len, sizeof(tcp_len));
-	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + sizeof(struct tcphdr)) / 2));
+	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + packet_len - sizeof(struct iphdr)) / 2));
 }
 
-static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket)
+static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket, int data_length)
 {
+	char	data[data_length];
+
+	for (int i = 0; i < data_length; i++)
+		data[i] = 42;
+
 	pthread_mutex_lock(mutex_socket);
-	if (sendto(sockfd, 0, 0, 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
+	if (sendto(sockfd, data, data_length, 0, (struct sockaddr *)&destaddr, sizeof(destaddr)) == -1)
 	{
 		perror("sendto");
 		pthread_mutex_unlock(mutex_socket);
@@ -81,9 +83,9 @@ static int send_udp_scan(int sockfd, struct sockaddr_in destaddr, pthread_mutex_
 	return (0);
 }
 
-static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket, int ttl)
+static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in srcaddr, struct sockaddr_in destaddr, pthread_mutex_t *mutex_socket, int ttl, int data_length)
 {
-	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr)] = {0};
+	char packet[sizeof(struct iphdr) + sizeof(struct tcphdr) + data_length];
 	struct iphdr	iphdr = create_ip_header(srcaddr, destaddr, ttl);
 	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
@@ -91,13 +93,16 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 	memcpy(packet, &iphdr, sizeof(struct iphdr));
 	memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
 
+	for (int i = 0; i < data_length; i++)
+		packet[sizeof(struct iphdr) + sizeof(struct tcphdr) + i] = 42;
+
 	// Calculate checksum
 	iphdr.check = 0;
 	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr) / 2);
 	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
 
 	// Calculate the TCP checksum
-	tcphdr.th_sum = calculate_tcp_checksum(tcphdr, srcaddr, destaddr);
+	tcphdr.th_sum = calculate_tcp_checksum((unsigned char *)packet, sizeof(packet), srcaddr, destaddr);
 	memcpy(packet + sizeof(struct iphdr) + 16, &tcphdr.th_sum, sizeof(tcphdr.th_sum));
 
 	// Update the TCP checksum in the packet
@@ -127,9 +132,9 @@ int	send_scan(t_nmap *nmap, const t_scan_type scan_type, const int port) {
 	struct sockaddr_in	destaddr = nmap->destaddr;
 	destaddr.sin_port = htons(port);
 	if (scan_type == UDP) {
-		return send_udp_scan(nmap->sockfd_udp, destaddr, &nmap->mutex_socket_udp);
+		return send_udp_scan(nmap->sockfd_udp, destaddr, &nmap->mutex_socket_udp, nmap->args.data_length);
 	} else {
-		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, destaddr, &nmap->mutex_socket_tcp, nmap->args.ttl);
+		return send_tcp_scan(nmap->sockfd_tcp, port, tcp_scan_flags[scan_type], nmap->srcaddr, destaddr, &nmap->mutex_socket_tcp, nmap->args.ttl, nmap->args.data_length);
 	}
 }
 

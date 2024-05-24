@@ -91,6 +91,7 @@ typedef struct s_args
 	uint16_t		total_ports;
 	uint16_t		opened_ports;
 	uint16_t		ttl;
+	uint16_t		data_length;
 }	t_args;
 
 typedef struct s_nmap
