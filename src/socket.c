@@ -1,6 +1,6 @@
 #include "../include/ft_nmap.h"
 
-int	create_socket(int protocol)
+int	create_socket(int protocol, int ttl)
 {
 	int sockfd;
 	if (protocol == IPPROTO_TCP)
@@ -21,6 +21,15 @@ int	create_socket(int protocol)
 	if (protocol == IPPROTO_TCP) {
 		int on = 1;
 		if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
+			perror("setsockopt");
+			return (1);
+		}
+	}
+
+	if (protocol == IPPROTO_UDP && ttl != -1)
+	{
+		if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) == -1)
+		{
 			perror("setsockopt");
 			return (1);
 		}

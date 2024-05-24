@@ -445,6 +445,29 @@ void exclude_ports(t_args *args) {
 	}
 }
 
+void	parse_arg_ttl(t_args *args, int argc, char **argv, int *i)
+{
+	if (ft_strcmp(argv[*i], "--ttl") == 0)
+	{
+		if (*i + 1 < argc)
+		{
+			(*i)++;
+			int	ttl = ft_atoi(argv[*i]);
+			if (ttl < 1 || ttl > 255)
+			{
+				printf("Error: --ttl must be between 1 and 255\n");
+				exit_parsing(args, 1);
+			}
+			args->ttl = ttl;
+		}
+		else
+		{
+			printf("Error: --ttl requires an argument\n");
+			exit_parsing(args, 1);
+		}
+	}
+}
+
 t_args	parse_args(int argc, char **argv)
 {
 	t_args	args;
@@ -458,6 +481,7 @@ t_args	parse_args(int argc, char **argv)
 	args.rand_ip_amt = RAND_IP_AMT_INIT;
 	args.rand_ip = NULL;
 	args.excludes = NULL;
+	args.ttl = 64;
 	args.exclude_ports_range = NULL;
 
 	ft_memset(&args.port_data, 0, sizeof(t_port_data) * 1024);
@@ -475,6 +499,7 @@ t_args	parse_args(int argc, char **argv)
 		parse_arg_exclude(&args, argc, argv, &i);
 		parse_arg_exclude_port(&args, argc, argv, &i);
 		parse_arg_scan(&args, argc, argv, &i);
+		parse_arg_ttl(&args, argc, argv, &i);
 		i++;
 	}
 
