@@ -115,6 +115,28 @@ int		get_next_port(t_nmap *nmap, uint16_t *index)
 	return (port);
 }
 
+void scan_services(t_nmap *nmap) {
+	struct servent *service = NULL;
+	int index = 0;
+
+	while (nmap->args.port_data[index].port) {
+		int scan_index = 0;
+
+		while (scan_index < 6) {
+			if (nmap->args.scans[scan_index]) {
+				service = getservbyport(htons(nmap->args.port_data[index].port), scan_index == UDP ? "udp" : "tcp");
+				if (service) {
+					ft_strcpy(nmap->args.port_data[index].service, service->s_name);
+				}
+			}
+
+			scan_index++;
+		}
+
+		index++;
+	}
+}
+
 void	*thread_scan(void *arg)
 {
 	t_nmap			*nmap = (t_nmap *)arg;
@@ -187,11 +209,6 @@ void	*thread_scan(void *arg)
 							nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 						}
 					}
-				}
-				struct servent *service = NULL;
-				service = getservbyport(htons(user_data.nmap->args.port_data[user_data.index].port), scan_index == UDP ? "udp" : "tcp");
-				if (service) {
-					ft_strcpy(user_data.nmap->args.port_data[user_data.index].service, service->s_name);
 				}
 				close_pcap(handle, &fp);
 			}
@@ -322,6 +339,8 @@ int	main(int argc, char **argv)
 
 			if (stop_flag == 1)
 				break ;
+
+			scan_services(&nmap);
 
 			display_end_data(&nmap, scan_start_time);
 		} else {
