@@ -51,46 +51,48 @@ static t_response_result	get_conclusion(t_response_result response_results[6], t
 
 	int scans_amt = 0;
 
-	for (int i = 0; i < 6; ++i) {
-		if (scans[i]) {
+	for (int scan_index = 0; scan_index < 6; ++scan_index) {
+		if (scans[scan_index]) {
 			++scans_amt;
 		}
 	}
 
 	if (scans_amt == 1) {
-		for (int i = 0; i < 6; ++i) {
-			if (scans[i]) {
-				return response_results[i];
+		for (int scan_index = 0; scan_index < 6; ++scan_index) {
+			if (scans[scan_index]) {
+				return response_results[scan_index];
 			}
 		}
 	}
 
 	t_scan_type	response_count[6] = {0};
 
-	for (int i = 0; i < 6; ++i) {
-		if (scans[i]) {
-			++response_count[response_results[i]];
+	for (int scan_index = 0; scan_index < 6; ++scan_index) {
+		if (scans[scan_index]) {
+			++response_count[response_results[scan_index]];
 		}
 	}
 
-	uint8_t		max = response_count[0];
+	uint8_t		max_index = 0;
+	uint8_t		max = response_count[max_index];
 	uint8_t		dupes = 0;
 
-	for (int i = 1; i < 6; ++i) {
-		if (response_count[i] > max) {
-			max = i;
+	for (int scan_index = 1; scan_index < 6; ++scan_index) {
+		if (response_count[scan_index] > max) {
+			max_index = scan_index;
+			max = response_count[max_index];
 			dupes = 0;
-		} else if (response_count[i] == max) {
+		} else if (response_count[scan_index] == max) {
 			++dupes;
 		}
 	}
 
 	if (!dupes) {
-		return max;
+		return max_index;
 	} else {
-		for (int i = 0; i < 6; ++i) {
-			if (scans[i] && response_count[i] == max) {
-				return response_results[i];
+		for (int scan_index = 0; scan_index < 6; ++scan_index) {
+			if (scans[scan_index] && response_count[scan_index] == max) {
+				return response_results[scan_index];
 			}
 		}
 	}
