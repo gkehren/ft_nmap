@@ -73,25 +73,26 @@ static t_response_result	get_conclusion(t_response_result response_results[6], t
 		}
 	}
 
-	uint8_t		max_index = 0;
-	uint8_t		max = response_count[max_index];
+	uint8_t		max_res_index = 0;
+	uint8_t		max_res = response_count[max_res_index];
 	uint8_t		dupes = 0;
 
-	for (int scan_index = 1; scan_index < 6; ++scan_index) {
-		if (response_count[scan_index] > max) {
-			max_index = scan_index;
-			max = response_count[max_index];
+	for (int response_index = 1; response_index < 6; ++response_index) {
+		if (response_count[response_index] > max_res) {
+			max_res_index = response_index;
+			max_res = response_count[max_res_index];
 			dupes = 0;
-		} else if (response_count[scan_index] == max) {
+		} else if (response_count[response_index] == max_res) {
 			++dupes;
 		}
 	}
 
+
 	if (!dupes) {
-		return max_index;
+		return max_res_index;
 	} else {
 		for (int scan_index = 0; scan_index < 6; ++scan_index) {
-			if (scans[scan_index] && response_count[scan_index] == max) {
+			if (scans[scan_index] && response_count[response_results[scan_index]] == max_res) {
 				return response_results[scan_index];
 			}
 		}
@@ -234,9 +235,11 @@ int	scan(t_nmap *nmap)
 	nmap->index = 0;
 	nmap->args.opened_ports = 0;
 
+	uint16_t n_threads = nmap->args.speedup ? nmap->args.speedup : 1;
 	int thread_count = 0;
+	
 
-	for (int i = 0; i < nmap->args.speedup; i++)
+	for (int i = 0; i < n_threads; i++)
 	{
 		pthread_mutex_lock(&mutex_flag);
 		if (stop_flag == 1)

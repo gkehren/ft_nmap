@@ -505,7 +505,7 @@ t_args	parse_args(int argc, char **argv)
 	args.file = NULL;
 	args.file_fd = NULL;
 	args.spoof = NULL;
-	args.speedup = 1;
+	args.speedup = 0;
 	args.rand_ip_amt = RAND_IP_AMT_INIT;
 	args.rand_ip = NULL;
 	args.excludes = NULL;

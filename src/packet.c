@@ -22,7 +22,7 @@ struct tcphdr	create_tcp_header(int port, int flags)
 	memset(&tcphdr, 0, sizeof(struct tcphdr));
 	tcphdr.th_sport = htons(43906); // Source port (random)
 	tcphdr.th_dport = htons(port); // Destination port
-	tcphdr.th_seq = htonl(0); // Sequence number
+	tcphdr.th_seq = htonl(42); // Sequence number
 	tcphdr.th_ack = 0; // Acknowledgement number
 	tcphdr.th_off = 5; // Data offset
 	tcphdr.th_flags = flags; // Flags (SYN, ACK, FIN, RST, PSH, URG)
