@@ -19,7 +19,7 @@ unsigned short	calculate_checksum(unsigned short *addr, int len)
 struct tcphdr	create_tcp_header(int port, int flags)
 {
 	struct tcphdr	tcphdr;
-	memset(&tcphdr, 0, sizeof(struct tcphdr));
+	ft_memset(&tcphdr, 0, sizeof(struct tcphdr));
 	tcphdr.th_sport = htons(43906); // Source port (random)
 	tcphdr.th_dport = htons(port); // Destination port
 	tcphdr.th_seq = htonl(42); // Sequence number
@@ -34,7 +34,7 @@ struct tcphdr	create_tcp_header(int port, int flags)
 struct iphdr	create_ip_header(struct sockaddr_in srcaddr, struct sockaddr_in destaddr, int ttl)
 {
 	struct iphdr	iphdr;
-	memset(&iphdr, 0, sizeof(struct iphdr));
+	ft_memset(&iphdr, 0, sizeof(struct iphdr));
 	iphdr.ihl = 5; // Header length
 	iphdr.version = 4; // Version
 	iphdr.tos = 0; // Type of service
@@ -59,8 +59,8 @@ unsigned short calculate_tcp_checksum(unsigned char *packet, int packet_len, str
 	pseudo_header.tcp_len = htons(packet_len - sizeof(struct iphdr));
 
 	char pseudo_packet[sizeof(pseudo_header) + packet_len - sizeof(struct iphdr)];
-	memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
-	memcpy(pseudo_packet + sizeof(pseudo_header), packet + sizeof(struct iphdr), packet_len - sizeof(struct iphdr));
+	ft_memcpy(pseudo_packet, &pseudo_header, sizeof(pseudo_header));
+	ft_memcpy(pseudo_packet + sizeof(pseudo_header), packet + sizeof(struct iphdr), packet_len - sizeof(struct iphdr));
 
 	return (calculate_checksum((unsigned short *)pseudo_packet, (sizeof(pseudo_header) + packet_len - sizeof(struct iphdr)) / 2));
 }
@@ -90,8 +90,8 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 	struct tcphdr	tcphdr = create_tcp_header(port, flags);
 
 	// Create the packet
-	memcpy(packet, &iphdr, sizeof(struct iphdr));
-	memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
+	ft_memcpy(packet, &iphdr, sizeof(struct iphdr));
+	ft_memcpy(packet + sizeof(struct iphdr), &tcphdr, sizeof(struct tcphdr));
 
 	for (int i = 0; i < data_length; i++)
 		packet[sizeof(struct iphdr) + sizeof(struct tcphdr) + i] = 42;
@@ -99,11 +99,11 @@ static int send_tcp_scan(int sockfd, int port, int flags, struct sockaddr_in src
 	// Calculate checksum
 	iphdr.check = 0;
 	iphdr.check = calculate_checksum((unsigned short *)packet, sizeof(struct iphdr) / 2);
-	memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
+	ft_memcpy(packet + 10, &iphdr.check, sizeof(iphdr.check));
 
 	// Calculate the TCP checksum
 	tcphdr.th_sum = calculate_tcp_checksum((unsigned char *)packet, sizeof(packet), srcaddr, destaddr);
-	memcpy(packet + sizeof(struct iphdr) + 16, &tcphdr.th_sum, sizeof(tcphdr.th_sum));
+	ft_memcpy(packet + sizeof(struct iphdr) + 16, &tcphdr.th_sum, sizeof(tcphdr.th_sum));
 
 	// Update the TCP checksum in the packet
 	*(unsigned short *)(packet + sizeof(struct iphdr) + 16) = tcphdr.th_sum;

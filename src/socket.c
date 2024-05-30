@@ -43,7 +43,7 @@ struct sockaddr_in	get_sockaddr(t_nmap *nmap, char *host)
 	struct addrinfo hints, *res;
 	int status;
 
-	memset(&hints, 0, sizeof(hints));
+	ft_memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
