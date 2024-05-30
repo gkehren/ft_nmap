@@ -53,88 +53,91 @@ void	parse_arg_help(t_args *args, char **argv, int *i)
 	}
 }
 
-int	add_port_end_of_table(t_args *args, int port)
-{
-	int	i = 0;
-	while (args->port_data[i].port != 0)
-	{
-		if (args->port_data[i].port == port)
-		{
-			printf("Error: --ports the port %d is already in the list\n", port);
-			return (1);
-		}
-		i++;
-	}
-	if (i >= 1024)
-	{
-		printf("Error: --ports the number of ports scanned cannot exceed 1024\n");
-		return (1);
-	}
-	args->port_data[i].port = port;
-	return (0);
-}
-
-int	add_port_range(t_args *args, int begin, int end)
-{
-	if (end - begin > 1024)
-	{
-		printf("Error: --ports the number of ports scanned cannot exceed 1024\n");
-		return (1);
-	}
-	int	port = begin;
-	while (port <= end)
-	{
-		if (add_port_end_of_table(args, port) == 1)
-			return (1);
-		port++;
-	}
-	return (0);
-}
-
 void	parse_arg_ports(t_args *args, int argc, char **argv, int *i)
 {
 	if (ft_strcmp(argv[*i], "--ports") == 0)
 	{
 		if (*i + 1 < argc)
 		{
+			char **port_ranges_str = NULL;
+			t_port_range *port_ranges = NULL;
+			uint16_t ports_range_size = 0;
+
 			(*i)++;
-			char	**tokens = ft_split(argv[*i], ',');
-			for (int j = 0; tokens[j] != NULL; j++)
-			{
-				char	*token = tokens[j];
-				if (strstr(token, "-") != NULL)
-				{
-					int	begin = ft_atoi(strtok(token, "-"));
-					int	end = ft_atoi(strtok(NULL, "-"));
-					if (begin < 1 || begin > 65535 || end < 1 || end > 65535 || begin > end)
-					{
-						printf("Error: --ports incorrect range port (1-65535)\n");
-						ft_free(tokens);
-						exit_parsing(args, 1);
-					}
-					if (add_port_range(args, begin, end) == 1)
-					{
-						ft_free(tokens);
-						exit_parsing(args, 1);
+			port_ranges_str = ft_split(argv[*i], ',');
+			if (!port_ranges_str) {
+				printf("Error: --ports ft_split error\n");
+				exit_parsing(args, 1);
+			}
+
+			for (int i = 0; port_ranges_str[i]; ++i) {
+				++ports_range_size;
+			}
+
+			if ((port_ranges = (t_port_range *)malloc(sizeof(t_port_range) * ports_range_size)) == NULL) {
+				for (int i = 0; port_ranges_str[i]; ++i) {
+					free(port_ranges_str[i]);
+				}
+				free(port_ranges_str);
+
+				printf("Error: --ports malloc error\n");
+				exit_parsing(args, 1);
+			}
+
+			int max, min;
+			for (int i = 0, j = 0, total_ports = 0; port_ranges_str[i]; ++i) {
+				min = ft_atoi(port_ranges_str[i]);
+				j = 0;
+				for (; port_ranges_str[i][j]; ++j) {
+					if (port_ranges_str[i][j] == '-') {
+						break ;
 					}
 				}
-				else
-				{
-					int	port = ft_atoi(token);
-					if (port < 1 || port > 65535)
-					{
-						printf("Error: --ports incorrect range port (1-65535)\n");
-						ft_free(tokens);
-						exit_parsing(args, 1);
+				if (port_ranges_str[i][j] == '-') {
+					max = ft_atoi(&port_ranges_str[i][j + 1]);
+				} else {
+					max = ft_atoi(port_ranges_str[i]);
+				}
+
+				if (min > max || max <= 0 || min <= 0 || max > 65535 || min > 65535) {
+					printf("Error: --ports bad range '%s'\n", port_ranges_str[i]);
+
+					for (int i = 0; port_ranges_str[i]; ++i) {
+						free(port_ranges_str[i]);
 					}
-					if (add_port_end_of_table(args, port) == 1)
-					{
-						ft_free(tokens);
-						exit_parsing(args, 1);
+					free(port_ranges_str);
+					free(port_ranges);
+					exit_parsing(args, 1);
+				}
+
+				port_ranges[i].min = min;
+				port_ranges[i].max = max;
+
+				if ((total_ports += (port_ranges[i].max - port_ranges[i].min + 1)) > 1024) {
+					printf("Error: --ports too many ports (max. 1024)\n");
+
+					for (int i = 0; port_ranges_str[i]; ++i) {
+						free(port_ranges_str[i]);
 					}
+					free(port_ranges_str);
+					free(port_ranges);
+					exit_parsing(args, 1);
 				}
 			}
-			ft_free(tokens);
+
+			int ports_index = 0;
+			for (int i = 0; i < ports_range_size; ++i) {
+				for (int curr_port = port_ranges[i].min; curr_port <= port_ranges[i].max; ++curr_port) {
+					args->port_data[ports_index].port = curr_port;
+					++ports_index;
+				}
+			}
+
+			for (int i = 0; port_ranges_str[i]; ++i) {
+				free(port_ranges_str[i]);
+			}
+			free(port_ranges_str);
+			free(port_ranges);
 		}
 		else
 		{
@@ -394,30 +397,43 @@ void	parse_arg_scan(t_args *args, int argc, char **argv, int *i)
 	{
 		if (*i + 1 < argc)
 		{
-			char	*token;
 			(*i)++;
-			token = strtok(argv[*i], ",");
-			while (token != NULL)
-			{
-				if (ft_strcmp(token, "SYN") == 0)
+
+			char	**scans = ft_split(argv[*i], ',');
+
+			if (scans == NULL) {
+				printf("Error: --scan ft_split malloc error\n");
+				exit_parsing(args, 1);
+			}
+
+			for (int scans_index = 0; scans[scans_index]; ++scans_index) {
+				if (ft_strcmp(scans[scans_index], "SYN") == 0)
 					args->scans[SYN] = 1;
-				else if (ft_strcmp(token, "NULL") == 0)
+				else if (ft_strcmp(scans[scans_index], "NULL") == 0)
 					args->scans[null] = 1;
-				else if (ft_strcmp(token, "ACK") == 0)
+				else if (ft_strcmp(scans[scans_index], "ACK") == 0)
 					args->scans[ACK] = 1;
-				else if (ft_strcmp(token, "FIN") == 0)
+				else if (ft_strcmp(scans[scans_index], "FIN") == 0)
 					args->scans[FIN] = 1;
-				else if (ft_strcmp(token, "XMAS") == 0)
+				else if (ft_strcmp(scans[scans_index], "XMAS") == 0)
 					args->scans[XMAS] = 1;
-				else if (ft_strcmp(token, "UDP") == 0)
+				else if (ft_strcmp(scans[scans_index], "UDP") == 0)
 					args->scans[UDP] = 1;
 				else
 				{
 					printf("Error: --scan must be one of SYN/NULL/ACK/FIN/XMAS/UDP\n");
+					for (int free_index = 0; scans[free_index]; ++free_index) {
+						free(scans[free_index]);
+					}
+					free(scans);
 					exit_parsing(args, 1);
 				}
-				token = strtok(NULL, ",");
 			}
+
+			for (int free_index = 0; scans[free_index]; ++free_index) {
+				free(scans[free_index]);
+			}
+			free(scans);
 		}
 		else
 		{
@@ -543,11 +559,6 @@ t_args	parse_args(int argc, char **argv)
 	{
 		for (int i = 0; i < 6; i++)
 			args.scans[i] = 1;
-	}
-	if (args.port_data[0].port == 0)
-	{
-		for (int i = 1; i <= 1024; i++)
-			add_port_end_of_table(&args, i);
 	}
 
 	if (args.exclude_ports_range) {
