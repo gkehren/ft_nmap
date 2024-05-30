@@ -37,7 +37,7 @@ all: ${LIBFT} ${NAME}
 
 ${NAME}: ${OBJ} ${LIBFTPATH}${LIBFTLIB}
 	@echo ${CYAN} " - Compiling $@" $(RED)
-	@${CC} ${CFLAGS} ${SRC} -o ${NAME} ${LIBFTFLAGS} -lm -lpcap
+	@${CC} ${CFLAGS} ${SRC} -o ${NAME} ${LIBFTFLAGS} -lpcap -lpthread
 	@echo $(GREEN) " - OK" $(EOC)
 
 ${CCHPATH}%.o: ${SRCPATH}%.c
