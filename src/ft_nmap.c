@@ -140,6 +140,24 @@ void scan_services(t_nmap *nmap) {
 	}
 }
 
+void	*timeout_handler(void *arg)
+{
+	struct timeval start_time, current_time;
+	gettimeofday(&start_time, NULL);
+
+	while (1)
+	{
+		gettimeofday(&current_time, NULL);
+		long elapsed_time = (current_time.tv_sec - start_time.tv_sec) * 1000 + (current_time.tv_usec - start_time.tv_usec) / 1000;
+		if (elapsed_time >= 500)
+		{
+			pcap_breakloop(*(pcap_t **)arg);
+			break;
+		}
+	}
+	return (void *)0;
+}
+
 void	*thread_scan(void *arg)
 {
 	t_nmap			*nmap = (t_nmap *)arg;
@@ -178,41 +196,28 @@ void	*thread_scan(void *arg)
 					return (void *)1;
 				}
 
-				int	fd = pcap_get_selectable_fd(handle);
-				if (fd == -1)
+				pthread_t		timeout_thread;
+				if (pthread_create(&timeout_thread, NULL, (void *)timeout_handler, (void *)&handle) != 0)
 				{
-					fprintf(stderr, "pcap_get_selectable_fd failed: %s\n", pcap_geterr(handle));
+					fprintf(stderr, "Error: Couldn't create thread\n");
 					close_pcap(handle, &fp);
 					destroy_mutex(nmap);
 					return (void *)1;
 				}
 
-				int	timeout = 500;
-				struct pollfd	pfd = {fd, POLLIN, timeout};
-
-				int	ret = poll(&pfd, 1, timeout);
+				int ret = pcap_dispatch(handle, 1, packet_handler, (u_char *)&user_data);
 				if (ret == -1) {
-					fprintf(stderr, "poll failed: %s\n", strerror(errno));
+					fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
 					close_pcap(handle, &fp);
-					destroy_mutex(nmap);
 					return (void *)1;
 				}
 				else if (ret == 0) {
 					nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 				}
-				else {
-					if (pfd.revents & POLLIN) {
-						int ret = pcap_dispatch(handle, 1, packet_handler, (u_char *)&user_data);
-						if (ret == -1) {
-							fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
-							close_pcap(handle, &fp);
-							return (void *)1;
-						}
-						else if (ret == 0) {
-							nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
-						}
-					}
-				}
+
+				pthread_cancel(timeout_thread);
+				pthread_join(timeout_thread, NULL);
+
 				close_pcap(handle, &fp);
 			}
 			scan_index++;
@@ -237,7 +242,7 @@ int	scan(t_nmap *nmap)
 
 	uint16_t n_threads = nmap->args.speedup ? nmap->args.speedup : 1;
 	int thread_count = 0;
-	
+
 
 	for (int i = 0; i < n_threads; i++)
 	{
