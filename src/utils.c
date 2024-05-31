@@ -33,6 +33,43 @@ void	close_nmap(t_nmap *nmap)
 	}
 }
 
+int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, char *dev)
+{
+	char	errbuf[PCAP_ERRBUF_SIZE]; // Buffer for error messages
+	int		timeout = 500; // Timeout in milliseconds
+	char	filter_exp[100]; // Filter expression
+	bpf_u_int32	netp, maskp; // IP and subnet mask of the network device
+
+	if (pcap_lookupnet(dev, &netp, &maskp, errbuf) == -1)
+	{
+		fprintf(stderr, "Error: Couldn't get netmask for device %s: %s\n", dev, errbuf);
+		return (1);
+	}
+
+	*handle = pcap_open_live(dev, BUFSIZ, 1, timeout, errbuf);
+	if (*handle == NULL)
+	{
+		fprintf(stderr, "Error: Couldn't open device %s: %s\n", dev, errbuf);
+		return (1);
+	}
+
+	sprintf(filter_exp, "tcp and src host %s and src port %d", ip, port);
+
+	if (pcap_compile(*handle, fp, filter_exp, 0, netp) == -1)
+	{
+		fprintf(stderr, "Error: Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(*handle));
+		return (1);
+	}
+
+	if (pcap_setfilter(*handle, fp) == -1)
+	{
+		fprintf(stderr, "Error: Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(*handle));
+		return (1);
+	}
+
+	return (0);
+}
+
 void	close_pcap(pcap_t *handle, struct bpf_program *fp)
 {
 	if (handle != NULL)
@@ -67,23 +104,23 @@ char	*get_default_dev(t_nmap *nmap)
 }
 
 char *generate_random_ip(void) {
-    unsigned char	byte1, byte2, byte3, byte4;
+	unsigned char	byte1, byte2, byte3, byte4;
 	char			*s = NULL;
 
-    byte1 = rand() % 256;
-    byte2 = rand() % 256;
-    byte3 = rand() % 256;
-    byte4 = rand() % 256;
+	byte1 = rand() % 256;
+	byte2 = rand() % 256;
+	byte3 = rand() % 256;
+	byte4 = rand() % 256;
 
-    while ((byte1 == 10) || (byte1 == 172 && (byte2 >= 16 && byte2 <= 31)) || (byte1 == 192 && byte2 == 168)) {
-        byte1 = rand() % 256;
-        byte2 = rand() % 256;
-        byte3 = rand() % 256;
-        byte4 = rand() % 256;
-    }
+	while ((byte1 == 10) || (byte1 == 172 && (byte2 >= 16 && byte2 <= 31)) || (byte1 == 192 && byte2 == 168)) {
+		byte1 = rand() % 256;
+		byte2 = rand() % 256;
+		byte3 = rand() % 256;
+		byte4 = rand() % 256;
+	}
 
 	s = (char *)malloc(sizeof(char) * 16);
-    sprintf(s, "%d.%d.%d.%d", byte1, byte2, byte3, byte4);
+	sprintf(s, "%d.%d.%d.%d", byte1, byte2, byte3, byte4);
 
 	return s;
 }

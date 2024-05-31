@@ -147,6 +147,7 @@ t_response_result	process_response(t_user_data *user_data, struct tcphdr *tcphdr
 
 // utils.c
 void				close_nmap(t_nmap *nmap);
+int					create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, char *dev);
 void				close_pcap(pcap_t *handle, struct bpf_program *fp);
 void				destroy_mutex(t_nmap *nmap);
 char				*get_default_dev(t_nmap *nmap);

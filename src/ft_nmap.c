@@ -3,43 +3,6 @@
 volatile sig_atomic_t	stop_flag = 0;
 pthread_mutex_t			mutex_flag;
 
-int	create_pcap(pcap_t **handle, struct bpf_program *fp, int port, char *ip, char *dev)
-{
-	char	errbuf[PCAP_ERRBUF_SIZE]; // Buffer for error messages
-	int		timeout = 500; // Timeout in milliseconds
-	char	filter_exp[100]; // Filter expression
-	bpf_u_int32	netp, maskp; // IP and subnet mask of the network device
-
-	if (pcap_lookupnet(dev, &netp, &maskp, errbuf) == -1)
-	{
-		fprintf(stderr, "Error: Couldn't get netmask for device %s: %s\n", dev, errbuf);
-		return (1);
-	}
-
-	*handle = pcap_open_live(dev, BUFSIZ, 1, timeout, errbuf);
-	if (*handle == NULL)
-	{
-		fprintf(stderr, "Error: Couldn't open device %s: %s\n", dev, errbuf);
-		return (1);
-	}
-
-	sprintf(filter_exp, "tcp and src host %s and src port %d", ip, port);
-
-	if (pcap_compile(*handle, fp, filter_exp, 0, netp) == -1)
-	{
-		fprintf(stderr, "Error: Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(*handle));
-		return (1);
-	}
-
-	if (pcap_setfilter(*handle, fp) == -1)
-	{
-		fprintf(stderr, "Error: Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(*handle));
-		return (1);
-	}
-
-	return (0);
-}
-
 static t_response_result	get_conclusion(t_response_result response_results[6], t_scan_type scans[6]) {
 	if (scans[SYN]) {
 		if (response_results[SYN] == OPEN) {
@@ -178,8 +141,7 @@ void	*thread_scan(void *arg)
 
 		while (scan_index < 6) {
 			if (nmap->args.scans[scan_index]) {
-				int w = write(1, ".", 1);
-				(void)w;
+				write(1, ".", 1);
 				pcap_t	*handle;
 				struct bpf_program	fp;
 
@@ -192,7 +154,6 @@ void	*thread_scan(void *arg)
 
 				if (send_scan(nmap, scan_index, user_data.port) != 0) {
 					close_pcap(handle, &fp);
-					destroy_mutex(nmap);
 					return (void *)1;
 				}
 
@@ -201,7 +162,6 @@ void	*thread_scan(void *arg)
 				{
 					fprintf(stderr, "Error: Couldn't create thread\n");
 					close_pcap(handle, &fp);
-					destroy_mutex(nmap);
 					return (void *)1;
 				}
 
@@ -279,14 +239,15 @@ int	scan(t_nmap *nmap)
 
 void	sig_handler(int sig, siginfo_t *info, void *ucontext)
 {
-	(void)sig;
 	(void)info;
 	(void)ucontext;
-
-	pthread_mutex_lock(&mutex_flag);
-	stop_flag = 1;
-	pthread_mutex_unlock(&mutex_flag);
-	printf("\nSIGINT received, shutting down..\n");
+	if (sig == SIGINT)
+	{
+		pthread_mutex_lock(&mutex_flag);
+		stop_flag = 1;
+		pthread_mutex_unlock(&mutex_flag);
+		printf("\nSIGINT received, shutting down..\n");
+	}
 }
 
 int	main(int argc, char **argv)
@@ -379,8 +340,7 @@ int	main(int argc, char **argv)
 			break ;
 		}
 
-		int w = write(1, "\n\n", 2);
-		(void)w;
+		write(1, "\n\n", 2);
 	}
 
 	close_nmap(&nmap);
