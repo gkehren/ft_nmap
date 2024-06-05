@@ -103,24 +103,6 @@ void scan_services(t_nmap *nmap) {
 	}
 }
 
-void	*timeout_handler(void *arg)
-{
-	struct timeval start_time, current_time;
-	gettimeofday(&start_time, NULL);
-
-	while (1)
-	{
-		gettimeofday(&current_time, NULL);
-		long elapsed_time = (current_time.tv_sec - start_time.tv_sec) * 1000 + (current_time.tv_usec - start_time.tv_usec) / 1000;
-		if (elapsed_time >= 500)
-		{
-			pcap_breakloop(*(pcap_t **)arg);
-			break;
-		}
-	}
-	return (void *)0;
-}
-
 void	*thread_scan(void *arg)
 {
 	t_nmap			*nmap = (t_nmap *)arg;
@@ -157,27 +139,41 @@ void	*thread_scan(void *arg)
 					return (void *)1;
 				}
 
-				pthread_t		timeout_thread;
-				if (pthread_create(&timeout_thread, NULL, (void *)timeout_handler, (void *)&handle) != 0)
+				int	fd = pcap_get_selectable_fd(handle);
+				if (fd == -1)
 				{
-					fprintf(stderr, "Error: Couldn't create thread\n");
+					fprintf(stderr, "pcap_get_selectable_fd failed: %s\n", pcap_geterr(handle));
 					close_pcap(handle, &fp);
+					destroy_mutex(nmap);
 					return (void *)1;
 				}
 
-				int ret = pcap_dispatch(handle, 1, packet_handler, (u_char *)&user_data);
+				int	timeout = 500;
+				struct pollfd	pfd = {fd, POLLIN, timeout};
+
+				int	ret = poll(&pfd, 1, timeout);
 				if (ret == -1) {
-					fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
+					fprintf(stderr, "poll failed: %s\n", strerror(errno));
 					close_pcap(handle, &fp);
+					destroy_mutex(nmap);
 					return (void *)1;
 				}
 				else if (ret == 0) {
 					nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
 				}
-
-				pthread_cancel(timeout_thread);
-				pthread_join(timeout_thread, NULL);
-
+				else {
+					if (pfd.revents & POLLIN) {
+						int ret = pcap_dispatch(handle, 1, packet_handler, (u_char *)&user_data);
+						if (ret == -1) {
+							fprintf(stderr, "pcap_dispatch failed: %s\n", pcap_geterr(handle));
+							close_pcap(handle, &fp);
+							return (void *)1;
+						}
+						else if (ret == 0) {
+							nmap->args.port_data[user_data.index].response[user_data.scan_type] = process_response(&user_data, 0, 1);
+						}
+					}
+				}
 				close_pcap(handle, &fp);
 			}
 			scan_index++;
@@ -200,36 +196,41 @@ int	scan(t_nmap *nmap)
 	nmap->index = 0;
 	nmap->args.opened_ports = 0;
 
-	uint16_t n_threads = nmap->args.speedup ? nmap->args.speedup : 1;
+	uint16_t n_threads = nmap->args.speedup;
 	int thread_count = 0;
 
-
-	for (int i = 0; i < n_threads; i++)
+	if (nmap->args.speedup == 0)
 	{
-		pthread_mutex_lock(&mutex_flag);
-		if (stop_flag == 1)
-		{
-			pthread_mutex_unlock(&mutex_flag);
-			break ;
-		}
-		pthread_mutex_unlock(&mutex_flag);
-
-		if (pthread_create(&threads[i], NULL, thread_scan, (void *)nmap) != 0)
-		{
-			fprintf(stderr, "Error: Couldn't create thread\n");
-			destroy_mutex(nmap);
-			return (1);
-		}
-		thread_count++;
+		thread_scan(nmap);
 	}
-
-	for (int i = 0; i < thread_count; i++)
+	else
 	{
-		if (pthread_join(threads[i], NULL) != 0)
+		for (int i = 0; i < n_threads; i++)
 		{
-			fprintf(stderr, "Error: Couldn't join thread\n");
-			destroy_mutex(nmap);
-			return (1);
+			pthread_mutex_lock(&mutex_flag);
+			if (stop_flag == 1)
+			{
+				pthread_mutex_unlock(&mutex_flag);
+				break ;
+			}
+			pthread_mutex_unlock(&mutex_flag);
+
+			if (pthread_create(&threads[i], NULL, thread_scan, (void *)nmap) != 0)
+			{
+				fprintf(stderr, "Error: Couldn't create thread\n");
+				destroy_mutex(nmap);
+				return (1);
+			}
+			thread_count++;
+		}
+		for (int i = 0; i < thread_count; i++)
+		{
+			if (pthread_join(threads[i], NULL) != 0)
+			{
+				fprintf(stderr, "Error: Couldn't join thread\n");
+				destroy_mutex(nmap);
+				return (1);
+			}
 		}
 	}
 
