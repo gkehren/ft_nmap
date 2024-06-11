@@ -561,6 +561,12 @@ t_args	parse_args(int argc, char **argv)
 			args.scans[i] = 1;
 	}
 
+	if (args.port_data[0].port == 0) {
+		for (int port = 1; port <= 1024; ++port) {
+			args.port_data[port - 1].port = port;
+		}
+	}
+
 	if (args.exclude_ports_range) {
 		exclude_ports(&args);
 		free(args.exclude_ports_range);
